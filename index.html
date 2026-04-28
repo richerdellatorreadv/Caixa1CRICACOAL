@@ -548,7 +548,7 @@ const CAIXAS = [
   { id:'nikolle', nome:'Caixa 1 — NIKOLLE', tipo:'RI', colorClass:'ri-color' },
   { id:'miguel',  nome:'Caixa 2 — MIGUEL',  tipo:'RI', colorClass:'ri-color' },
   { id:'rheynz',  nome:'Caixa 3 — RHEYNZ',  tipo:'RI', colorClass:'ri-color' },
-  { id:'onr',     nome:'Caixa 4 — ONR',     tipo:'RI', colorClass:'onr-color' },
+  { id:'onr',     nome:'Caixa 4 — ONR',     tipo:'ONR', colorClass:'onr-color' },
   { id:'tdpj',    nome:'Títulos e Docs',     tipo:'TD', colorClass:'td-color'  },
 ];
 
@@ -564,6 +564,95 @@ const NOTAS = [
 // ═══ RENDER CAIXA ═══
 function renderCaixa(cfg) {
   const c = cfg.id;
+
+  // Anotações dinâmicas
+  const anotacoesHTML = `
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title"><div class="card-title-bar"></div>Anotações</div>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="addAnotacao('${c}')">+ Adicionar</button>
+    </div>
+    <div id="${c}-anots-wrap">
+      <div class="anot-row" data-anot>
+        <span class="anot-num">1.</span>
+        <input type="text" class="anot-input" placeholder="Observação..." oninput="atualizarNumAnots('${c}')">
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:12px;color:var(--accent-r);border-color:transparent;" onclick="removeAnotacao(this,'${c}')">✕</button>
+      </div>
+    </div>
+  </div>`;
+
+  // ONR: sem cédulas, sem abertura, sem forma de pagamento física
+  if (cfg.tipo === 'ONR') {
+    return `
+  <div class="page-header">
+    <div>
+      <div class="page-title ${cfg.colorClass}">${cfg.nome}</div>
+      <div class="page-sub">ONR — repasse via plataforma online</div>
+    </div>
+    <div class="total-display">
+      <div class="total-display-label">Total do Caixa</div>
+      <div class="total-display-val" id="${c}-total-badge">R$ 0,00</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar green"></div>Repasses Recebidos</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Depósito</div>
+          <input type="text" class="field-input" id="${c}-deposito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="field">
+          <div class="field-label">PIX</div>
+          <input type="text" class="field-input" id="${c}-pix" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <hr class="div">
+        <div class="field">
+          <div class="field-label">Crédito <span class="field-hint">valor bruto recebido</span></div>
+          <input type="text" class="field-input" id="${c}-credito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="field">
+          <div class="field-label">Taxa de Crédito <span class="field-hint">será descontada</span></div>
+          <input type="text" class="field-input neg" id="${c}-taxa" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="sub-row">
+          <span class="sub-row-lbl">Crédito Líquido</span>
+          <span class="sub-row-val" id="${c}-cred-liq">R$ 0,00</span>
+        </div>
+        <hr class="div">
+        <div class="field">
+          <div class="field-label">Débito</div>
+          <input type="text" class="field-input" id="${c}-debito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar yellow"></div>Conferência / Sistema</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Relatório IMOB <span class="field-hint">valor do sistema</span></div>
+          <input type="text" class="field-input" id="${c}-imob" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div id="${c}-diff-block" class="diff-block">
+          <div>
+            <div class="diff-info-label" id="${c}-diff-label">Aguardando IMOB</div>
+            <div class="diff-info-sub">Diferença caixa × sistema</div>
+          </div>
+          <div class="diff-val dim" id="${c}-diff-val">—</div>
+        </div>
+      </div>
+      ${anotacoesHTML}
+    </div>
+  </div>`;
+  }
+
+  // Layout padrão
   const notasHTML = NOTAS.map(n => `
     <div class="nota-row">
       <span class="nota-lbl">${n.lbl}</span>
@@ -585,7 +674,6 @@ function renderCaixa(cfg) {
   </div>
 
   <div class="g2">
-    <!-- COLUNA ESQUERDA -->
     <div>
       <div class="card">
         <div class="card-head">
@@ -632,7 +720,6 @@ function renderCaixa(cfg) {
       </div>
     </div>
 
-    <!-- COLUNA DIREITA -->
     <div>
       <div class="card">
         <div class="card-head">
@@ -683,16 +770,7 @@ function renderCaixa(cfg) {
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title"><div class="card-title-bar"></div>Anotações</div>
-        </div>
-        ${[1,2,3,4,5,6,7,8].map(i => `
-        <div class="anot-row">
-          <span class="anot-num">${i}.</span>
-          <input type="text" class="anot-input" id="${c}-anot-${i}" placeholder="Observação ${i}...">
-        </div>`).join('')}
-      </div>
+      ${anotacoesHTML}
     </div>
   </div>`;
 }
@@ -944,14 +1022,14 @@ function showToast(msg) {
 // ═══ PDF ═══
 function gerarPDF() {
   const { jsPDF } = window.jspdf;
-  const doc  = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const doc  = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   const data = coletarDados();
   const dateEl = document.getElementById('mainDate');
   const dateStr = dateEl.value
     ? new Date(dateEl.value + 'T12:00:00').toLocaleDateString('pt-BR')
     : new Date().toLocaleDateString('pt-BR');
 
-  const W = 210, M = 15;
+  const W = 297, M = 15;
   let y = 0;
 
   // Helpers
@@ -962,18 +1040,20 @@ function gerarPDF() {
   const txt = (text, x, yy, opts) => { doc.text(text, x, yy, opts); };
   const addY = (dy) => { y += dy; };
 
+  const H = 210; // landscape A4 height
+
   // check page break
   const checkPage = (needed=20) => {
-    if (y + needed > 285) {
+    if (y + needed > H-10) {
       doc.addPage();
       // white bg
-      bg(255,255,255); doc.rect(0,0,W,297,'F');
+      bg(255,255,255); doc.rect(0,0,W,H,'F');
       y = 16;
     }
   };
 
   // ── PAGE 1: RESUMO ──
-  bg(255,255,255); doc.rect(0,0,W,297,'F');
+  bg(255,255,255); doc.rect(0,0,W,H,'F');
 
   // Header band
   bg(20,30,55); doc.rect(0,0,W,28,'F');
@@ -1085,32 +1165,34 @@ function gerarPDF() {
     doc.setDrawColor(200,210,230); doc.line(M, y, W-M, y); addY(5);
 
     if (imobVal > 0) {
-      const diffImob = geral - imobVal;
-      fs(8,false); fc(100,110,140);
-      txt('IMOB (sistema):', M, y);
-      fc(40,50,80); txt(`R$ ${imobVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
-      addY(5);
-      txt('Diferença:', M, y);
-      if (Math.abs(diffImob) < 0.05) { fc(20,160,80); txt('✓ Conferido — R$ 0,00', W-M, y, {align:'right'}); }
-      else { fc(diffImob > 0 ? 180:200, diffImob>0?130:40, 20); txt(fmtSigned(diffImob), W-M, y, {align:'right'}); }
-      addY(8);
-    }
-    if (ansataVal > 0) {
-      const diffAnsata = geral - ansataVal;
-      fs(8,false); fc(100,110,140);
-      txt('ANSATA (sistema):', M, y);
-      fc(40,50,80); txt(`R$ ${ansataVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
-      addY(5);
-      txt('Diferença:', M, y);
-      if (Math.abs(diffAnsata) < 0.05) { fc(20,160,80); txt('✓ Conferido — R$ 0,00', W-M, y, {align:'right'}); }
-      else { fc(200,60,40); txt(fmtSigned(diffAnsata), W-M, y, {align:'right'}); }
-      addY(8);
-    }
+        const diffImob = geral - imobVal;
+        fs(8,false); fc(100,110,140);
+        txt('IMOB (sistema):', M, y);
+        fc(40,50,80); txt(`R$ ${imobVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+        addY(5);
+        txt('Diferença:', M, y);
+        // Removido o símbolo ✓ e o travessão especial, usando texto e hífen padrão
+        if (Math.abs(diffImob) < 0.05) { fc(20,160,80); txt('Conferido - R$ 0,00', W-M, y, {align:'right'}); }
+        else { fc(diffImob > 0 ? 180:200, diffImob>0?130:40, 20); txt(fmtSigned(diffImob), W-M, y, {align:'right'}); }
+        addY(8);
+      }
+      if (ansataVal > 0) {
+        const diffAnsata = geral - ansataVal;
+        fs(8,false); fc(100,110,140);
+        txt('ANSATA (sistema):', M, y);
+        fc(40,50,80); txt(`R$ ${ansataVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+        addY(5);
+        txt('Diferença:', M, y);
+        // Removido o símbolo ✓ e o travessão especial, usando texto e hífen padrão
+        if (Math.abs(diffAnsata) < 0.05) { fc(20,160,80); txt('Conferido - R$ 0,00', W-M, y, {align:'right'}); }
+        else { fc(200,60,40); txt(fmtSigned(diffAnsata), W-M, y, {align:'right'}); }
+        addY(8);
+      }
   }
 
   // ── PAGE 2: DETALHAMENTO ──
   doc.addPage();
-  bg(255,255,255); doc.rect(0,0,W,297,'F');
+  bg(255,255,255); doc.rect(0,0,W,H,'F');
   bg(20,30,55); doc.rect(0,0,W,18,'F');
   fs(11,true); fc(255,255,255); txt('DETALHAMENTO POR CAIXA', W/2, 10, {align:'center'});
   fs(8,false); fc(160,180,220); txt(dateStr, W/2, 15, {align:'center'});
@@ -1189,7 +1271,7 @@ function gerarPDF() {
       const diffI   = cTotVal - cImob;
       fs(8,false); fc(100,110,140);
       txt('  IMOB:', M, y);
-      const diffTxt = Math.abs(diffI) < 0.05 ? '✓ OK' : (diffI > 0 ? `+R$ ${diffI.toFixed(2)}` : `-R$ ${Math.abs(diffI).toFixed(2)}`);
+      const diffTxt = Math.abs(diffI) < 0.05 ? 'OK - Conferido' : (diffI > 0 ? `+R$ ${diffI.toFixed(2)}` : `-R$ ${Math.abs(diffI).toFixed(2)}`);
       fc(Math.abs(diffI) < 0.05 ? 20 : 200, Math.abs(diffI) < 0.05 ? 160 : 60, Math.abs(diffI) < 0.05 ? 80 : 40);
       txt(diffTxt, W-M, y, {align:'right'});
       addY(5);
@@ -1201,7 +1283,7 @@ function gerarPDF() {
 
   // Footer
   fs(7.5,false); fc(150,160,180);
-  txt(`Gerado em ${new Date().toLocaleString('pt-BR')} · Fechamento de Caixa Cartório`, W/2, 290, {align:'center'});
+  txt(`Gerado em ${new Date().toLocaleString('pt-BR')} · Fechamento de Caixa Cartório`, W/2, H-5, {align:'center'});
 
   doc.save(`fechamento-caixa-${dateStr.replace(/\//g,'-')}.pdf`);
   showToast('✓ PDF gerado com sucesso!');
