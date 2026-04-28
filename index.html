@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fechamento de Caixa — Cartório</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:       #080a0f;
+  --s1:       #0e1118;
+  --s2:       #131720;
+  --s3:       #1a1f2e;
+  --border:   #1f2535;
+  --border2:  #2a3145;
+  --accent:   #3b82f6;
+  --accent-g: #22c55e;
+  --accent-r: #ef4444;
+  --accent-y: #eab308;
+  --accent-p: #a78bfa;
+  --text:     #e2e8f5;
+  --text2:    #8892aa;
+  --text3:    #4a5270;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'Plus Jakarta Sans', sans-serif;
+  --r:        10px;
+  --r-sm:     7px;
+  --r-lg:     16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── TOPBAR ─── */
+.topbar {
+  position: sticky; top: 0; z-index: 200;
+  height: 56px;
+  background: rgba(8,10,15,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; gap: 16px;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.brand {
+  display: flex; align-items: center; gap: 10px;
+}
+.brand-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-p));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.brand-name {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.03em;
+  color: var(--text);
+}
+.brand-sep { width: 1px; height: 20px; background: var(--border2); }
+.date-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+}
+.date-pill span { font-size: 10px; color: var(--text3); }
+input[type=date].date-native {
+  background: transparent; border: none; outline: none;
+  font-family: var(--mono); font-size: 11px; color: var(--text);
+  cursor: pointer;
+}
+input[type=date].date-native::-webkit-calendar-picker-indicator {
+  filter: invert(0.5); cursor: pointer;
+}
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; letter-spacing: 0.02em;
+}
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--s2); color: var(--text); border-color: var(--border2); }
+.btn-pdf { background: var(--s2); color: var(--text); border: 1px solid var(--border2); }
+.btn-pdf:hover { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.12); }
+.btn-save { background: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(59,130,246,0.3); }
+.btn-save:hover { background: #5b9af8; transform: translateY(-1px); box-shadow: 0 0 24px rgba(59,130,246,0.45); }
+
+/* ─── TABS ─── */
+.tab-nav {
+  display: flex; gap: 1px; padding: 0 24px;
+  background: var(--s1); border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text3); padding: 12px 18px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 7px;
+  position: relative;
+}
+.tab-btn:hover { color: var(--text2); }
+.tab-btn.active { color: #fff; border-bottom-color: var(--accent); }
+.tab-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  background: var(--s3); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 1px 5px; color: var(--text2);
+  transition: all 0.15s;
+}
+.tab-btn.active .tab-badge { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: var(--accent); }
+
+/* ─── CONTENT ─── */
+.page { display: none; }
+.page.active { display: block; animation: pagein 0.2s ease; }
+@keyframes pagein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.content { max-width: 1140px; margin: 0 auto; padding: 28px 24px; }
+
+/* ─── PAGE HEADER ─── */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 28px; gap: 16px; flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; font-weight: 400; }
+.total-display { text-align: right; }
+.total-display-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 2px; }
+.total-display-val { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--accent-g); }
+
+/* ─── GRID ─── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.g4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .g2 { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .g3, .g4 { grid-template-columns: 1fr 1fr; } .topbar { padding: 0 14px; } .content { padding: 16px 14px; } }
+@media (max-width: 480px) { .g3, .g4 { grid-template-columns: 1fr; } }
+
+/* ─── CARD ─── */
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 20px;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--border2); }
+.card + .card { margin-top: 14px; }
+
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.card-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text2);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title-bar {
+  width: 3px; height: 12px; border-radius: 2px; background: var(--accent); flex-shrink: 0;
+}
+.card-title-bar.green { background: var(--accent-g); }
+.card-title-bar.yellow { background: var(--accent-y); }
+.card-title-bar.purple { background: var(--accent-p); }
+.card-title-bar.red { background: var(--accent-r); }
+
+/* ─── FIELD ─── */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text2); margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.field-hint { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10px; color: var(--text3); }
+.field-input {
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  color: var(--text); width: 100%; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none; appearance: none;
+}
+.field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.field-input.neg { color: var(--accent-r); }
+.field-input.dim { color: var(--text3); background: var(--bg); }
+
+/* ─── NOTA (CÉDULAS) ─── */
+.notas-wrap { display: flex; flex-direction: column; gap: 6px; }
+.nota-row {
+  display: grid; grid-template-columns: 70px 1fr auto;
+  align-items: center; gap: 10px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 12px;
+  transition: border-color 0.15s;
+}
+.nota-row:focus-within { border-color: rgba(59,130,246,0.5); background: var(--s3); }
+.nota-lbl {
+  font-family: var(--mono); font-size: 12px; color: var(--text2);
+  font-weight: 500;
+}
+.nota-qty {
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  background: transparent; border: none; outline: none;
+  color: var(--text); text-align: center; width: 100%;
+}
+.nota-qty::placeholder { color: var(--text3); }
+.nota-sub {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  text-align: right; min-width: 72px; font-weight: 400;
+  transition: color 0.15s;
+}
+.nota-sub.has-val { color: var(--accent-g); }
+
+/* ─── MOEDA / TROCO ─── */
+.moeda-row {
+  display: grid; grid-template-columns: 70px 1fr;
+  align-items: center; gap: 10px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 12px;
+  margin-top: 6px; transition: border-color 0.15s;
+}
+.moeda-row:focus-within { border-color: rgba(59,130,246,0.5); background: var(--s3); }
+.moeda-input {
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  background: transparent; border: none; outline: none;
+  color: var(--text); width: 100%;
+}
+
+/* ─── SUBTOTAL ROW ─── */
+.sub-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; margin-top: 10px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.sub-row-lbl { font-size: 12px; font-weight: 600; color: var(--text2); }
+.sub-row-val { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent-g); }
+.sub-row-val.neg { color: var(--accent-r); }
+.sub-row-val.dim { color: var(--text2); }
+
+/* ─── DIFF BLOCK ─── */
+.diff-block {
+  margin-top: 14px; padding: 14px 16px;
+  border-radius: var(--r); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; transition: all 0.2s;
+}
+.diff-block.ok  { border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.05); }
+.diff-block.warn{ border-color: rgba(234,179,8,0.3);  background: rgba(234,179,8,0.05);  }
+.diff-block.err { border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.05);  }
+.diff-info-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.diff-info-sub   { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.diff-val { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+.diff-val.ok   { color: var(--accent-g); }
+.diff-val.warn { color: var(--accent-y); }
+.diff-val.err  { color: var(--accent-r); }
+.diff-val.dim  { color: var(--text3); }
+
+/* ─── STAT CARD (geral) ─── */
+.stat {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+.stat-val { font-family: var(--mono); font-size: 24px; font-weight: 600; color: var(--text); }
+.stat-sub { font-size: 11px; color: var(--text3); }
+
+/* ─── TABLE (geral) ─── */
+.resumo-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+.resumo-table thead tr { border-bottom: 1px solid var(--border); }
+.resumo-table th {
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--text3); text-align: right; padding: 8px 12px;
+}
+.resumo-table th:first-child { text-align: left; }
+.resumo-table td { padding: 12px 12px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text2); }
+.resumo-table td:first-child { text-align: left; font-family: var(--sans); font-weight: 600; color: var(--text); font-size: 13px; }
+.resumo-table tbody tr:hover td { background: var(--s2); }
+.resumo-table tbody tr:last-child td { border-bottom: none; }
+.resumo-table .tot-row td {
+  font-family: var(--mono); font-weight: 700; color: var(--text);
+  border-top: 2px solid var(--border2); border-bottom: none;
+  padding-top: 14px; font-size: 13px;
+}
+.v-green { color: var(--accent-g) !important; }
+.v-red   { color: var(--accent-r) !important; }
+.v-blue  { color: var(--accent) !important; }
+
+/* ─── HR ─── */
+hr.div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+/* ─── ANOTAÇÕES ─── */
+.anot-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.anot-num { font-family: var(--mono); font-size: 11px; color: var(--text3); min-width: 18px; }
+.anot-input {
+  font-family: var(--sans); font-size: 13px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 12px;
+  color: var(--text); width: 100%; outline: none;
+  transition: border-color 0.15s;
+}
+.anot-input:focus { border-color: var(--accent); }
+
+/* ─── BERNADETE TAG ─── */
+.info-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25);
+  color: var(--accent-p); border-radius: 4px; padding: 2px 7px;
+}
+.info-tag.green { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.25); color: var(--accent-g); }
+.info-tag.red   { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.25); color: var(--accent-r); }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 12px 18px;
+  font-size: 13px; color: var(--text);
+  transform: translateY(70px); opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── COLOR TAGS ─── */
+.ri-color  { color: #93c5fd; }
+.onr-color { color: var(--accent-g); }
+.td-color  { color: var(--accent-y); }
+
+/* ─── ABERTURA NOTE ─── */
+.aber-note { font-size: 11px; color: var(--text3); margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.aber-note::before { content: '↓'; color: var(--accent-r); }
+
+/* ─── SECTION DIVIDER ─── */
+.section-div { margin: 26px 0 22px; display: flex; align-items: center; gap: 12px; }
+.section-div-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); white-space: nowrap; }
+.section-div-line { flex: 1; height: 1px; background: var(--border); }
+
+@media print { .topbar, .tab-nav, .btn, .toast { display: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="brand">
+      <div class="brand-icon">⬡</div>
+      <div class="brand-name">Caixa Cartório</div>
+    </div>
+    <div class="brand-sep"></div>
+    <div class="date-pill">
+      <span>Data:</span>
+      <input type="date" class="date-native" id="mainDate">
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost" onclick="resetData()">↺ Resetar</button>
+    <button class="btn btn-pdf" onclick="gerarPDF()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar PDF
+    </button>
+    <button class="btn btn-save" onclick="salvarDados()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Salvar
+    </button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('geral',this)">
+    Fechamento Geral
+    <span class="tab-badge" id="tb-geral">R$ 0</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('nikolle',this)">
+    <span class="ri-color">Caixa 1 — NIKOLLE</span>
+    <span class="tab-badge" id="tb-nikolle">R$ 0</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('miguel',this)">
+    <span class="ri-color">Caixa 2 — MIGUEL</span>
+    <span class="tab-badge" id="tb-miguel">R$ 0</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('rheynz',this)">
+    <span class="ri-color">Caixa 3 — RHEYNZ</span>
+    <span class="tab-badge" id="tb-rheynz">R$ 0</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('onr',this)">
+    <span class="onr-color">Caixa 4 — ONR</span>
+    <span class="tab-badge" id="tb-onr">R$ 0</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('tdpj',this)">
+    <span class="td-color">Títulos e Docs</span>
+    <span class="tab-badge" id="tb-tdpj">R$ 0</span>
+  </button>
+</div>
+
+<!-- ═══════════════════════════ FECHAMENTO GERAL ═══════════════════════════ -->
+<div id="page-geral" class="page active">
+<div class="content">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Fechamento Geral</div>
+      <div class="page-sub">Consolidado automático · atualizado em tempo real</div>
+    </div>
+    <div class="total-display">
+      <div class="total-display-label">Total Geral</div>
+      <div class="total-display-val" id="g-total-badge">R$ 0,00</div>
+    </div>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="g3" style="margin-bottom:20px;">
+    <div class="stat">
+      <div class="stat-lbl">Registro de Imóveis</div>
+      <div class="stat-val ri-color" id="g-ri-total">R$ 0,00</div>
+      <div class="stat-sub">Caixas 1, 2, 3 e 4 (ONR)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Títulos e Documentos</div>
+      <div class="stat-val td-color" id="g-td-total">R$ 0,00</div>
+      <div class="stat-sub">Caixa TD.PJ</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Relatório ANSATA</div>
+      <div class="stat-val" id="g-ansata-val">—</div>
+      <div style="margin-top:4px;">
+        <input type="text" class="field-input" id="ansata-input" placeholder="0,00"
+          oninput="calcularTudo()" style="font-size:13px;padding:7px 10px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title"><div class="card-title-bar"></div>Detalhamento por Caixa</div>
+    </div>
+    <table class="resumo-table">
+      <thead>
+        <tr>
+          <th>Caixa</th>
+          <th>Dinheiro</th>
+          <th>PIX</th>
+          <th>Crédito Líq.</th>
+          <th>Débito</th>
+          <th>Depósito</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="ri-color">Caixa 1 — NIKOLLE (RI)</td><td id="g-n-din">—</td><td id="g-n-pix">—</td><td id="g-n-cred">—</td><td id="g-n-deb">—</td><td id="g-n-dep">—</td><td id="g-n-tot" class="v-green">—</td></tr>
+        <tr><td class="ri-color">Caixa 2 — MIGUEL (RI)</td><td id="g-m-din">—</td><td id="g-m-pix">—</td><td id="g-m-cred">—</td><td id="g-m-deb">—</td><td id="g-m-dep">—</td><td id="g-m-tot" class="v-green">—</td></tr>
+        <tr><td class="ri-color">Caixa 3 — RHEYNZ (RI)</td><td id="g-r-din">—</td><td id="g-r-pix">—</td><td id="g-r-cred">—</td><td id="g-r-deb">—</td><td id="g-r-dep">—</td><td id="g-r-tot" class="v-green">—</td></tr>
+        <tr><td class="onr-color">Caixa 4 — ONR</td><td id="g-o-din">—</td><td id="g-o-pix">—</td><td id="g-o-cred">—</td><td id="g-o-deb">—</td><td id="g-o-dep">—</td><td id="g-o-tot" class="v-green">—</td></tr>
+        <tr><td class="td-color">Títulos e Documentos</td><td id="g-t-din">—</td><td id="g-t-pix">—</td><td id="g-t-cred">—</td><td id="g-t-deb">—</td><td id="g-t-dep">—</td><td id="g-t-tot" class="v-green">—</td></tr>
+        <tr class="tot-row">
+          <td>TOTAL GERAL</td>
+          <td id="g-sum-din">—</td><td id="g-sum-pix">—</td><td id="g-sum-cred">—</td><td id="g-sum-deb">—</td><td id="g-sum-dep">—</td>
+          <td id="g-sum-tot" class="v-green">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-div"><div class="section-div-line"></div><div class="section-div-lbl">Conferência e Controles</div><div class="section-div-line"></div></div>
+
+  <div class="g2">
+    <!-- IMOB -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><div class="card-title-bar yellow"></div>Relatório IMOB — Conferência Global</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Valor do sistema (IMOB) <span class="field-hint">Digite para conferir automaticamente</span></div>
+        <input type="text" class="field-input" id="imob-input" placeholder="0,00" oninput="calcularTudo()">
+      </div>
+      <div id="g-diff-block" class="diff-block">
+        <div>
+          <div class="diff-info-label" id="g-diff-label">Aguardando relatório IMOB</div>
+          <div class="diff-info-sub">Diferença entre caixa físico e sistema</div>
+        </div>
+        <div class="diff-val dim" id="g-diff-val">—</div>
+      </div>
+    </div>
+
+    <!-- CONSOLIDADO -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><div class="card-title-bar green"></div>Consolidado Final</div>
+      </div>
+      <div class="g2" style="gap:10px;">
+        <div>
+          <div class="field-label">RI + TD.PJ</div>
+          <div class="sub-row"><span class="sub-row-lbl">Total</span><span class="sub-row-val" id="g-ritd">R$ 0,00</span></div>
+        </div>
+        <div>
+          <div class="field-label">ANSATA</div>
+          <div class="sub-row"><span class="sub-row-lbl">Diferença</span><span class="sub-row-val dim" id="g-ansata-diff">—</span></div>
+        </div>
+      </div>
+      <hr class="div" style="margin:14px 0;">
+      <div class="g2" style="gap:10px;">
+        <div>
+          <div class="field-label">Bernadete Total <span class="field-hint">Informativo</span></div>
+          <div class="sub-row"><span class="sub-row-lbl">Saídas</span><span class="sub-row-val dim" id="g-bern-total">R$ 0,00</span></div>
+        </div>
+        <div>
+          <div class="field-label">Vale Total <span class="field-hint">Informativo</span></div>
+          <div class="sub-row"><span class="sub-row-lbl">Vales</span><span class="sub-row-val dim" id="g-vale-total">R$ 0,00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CAIXAS (renderizados via JS) ═══════════════════════════ -->
+<div id="page-nikolle" class="page"><div class="content"><div id="caixa-nikolle"></div></div></div>
+<div id="page-miguel"  class="page"><div class="content"><div id="caixa-miguel"></div></div></div>
+<div id="page-rheynz"  class="page"><div class="content"><div id="caixa-rheynz"></div></div></div>
+<div id="page-onr"     class="page"><div class="content"><div id="caixa-onr"></div></div></div>
+<div id="page-tdpj"    class="page"><div class="content"><div id="caixa-tdpj"></div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ CONFIG ═══
+const CAIXAS = [
+  { id:'nikolle', nome:'Caixa 1 — NIKOLLE', tipo:'RI', colorClass:'ri-color' },
+  { id:'miguel',  nome:'Caixa 2 — MIGUEL',  tipo:'RI', colorClass:'ri-color' },
+  { id:'rheynz',  nome:'Caixa 3 — RHEYNZ',  tipo:'RI', colorClass:'ri-color' },
+  { id:'onr',     nome:'Caixa 4 — ONR',     tipo:'RI', colorClass:'onr-color' },
+  { id:'tdpj',    nome:'Títulos e Docs',     tipo:'TD', colorClass:'td-color'  },
+];
+
+const NOTAS = [
+  { lbl:'R$ 100', val:100 },
+  { lbl:'R$ 50',  val:50  },
+  { lbl:'R$ 20',  val:20  },
+  { lbl:'R$ 10',  val:10  },
+  { lbl:'R$ 5',   val:5   },
+  { lbl:'R$ 2',   val:2   },
+];
+
+// ═══ RENDER CAIXA ═══
+function renderCaixa(cfg) {
+  const c = cfg.id;
+  const notasHTML = NOTAS.map(n => `
+    <div class="nota-row">
+      <span class="nota-lbl">${n.lbl}</span>
+      <input type="text" class="nota-qty" id="${c}-nota-${n.val}" placeholder="0"
+        inputmode="numeric" oninput="calcularCaixa('${c}')">
+      <span class="nota-sub" id="${c}-nota-${n.val}-val">R$ 0,00</span>
+    </div>`).join('');
+
+  return `
+  <div class="page-header">
+    <div>
+      <div class="page-title ${cfg.colorClass}">${cfg.nome}</div>
+      <div class="page-sub">${cfg.tipo === 'RI' ? 'Registro de Imóveis' : 'Títulos e Documentos'}</div>
+    </div>
+    <div class="total-display">
+      <div class="total-display-label">Total do Caixa</div>
+      <div class="total-display-val" id="${c}-total-badge">R$ 0,00</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- COLUNA ESQUERDA -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar red"></div>Abertura de Caixa</div>
+          <span class="info-tag red">Subtrai do total</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Valor de Abertura <span class="field-hint">fundo inicial do caixa</span></div>
+          <input type="text" class="field-input neg" id="${c}-abertura" placeholder="0,00" oninput="calcularCaixa('${c}')">
+          <div class="aber-note">Subtraído automaticamente do total final</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar"></div>Cédulas</div>
+        </div>
+        <div class="notas-wrap">${notasHTML}</div>
+        <hr class="div">
+        <div class="field-label" style="margin-bottom:6px;">Moeda / Troco</div>
+        <div class="moeda-row">
+          <span class="nota-lbl">Moeda</span>
+          <input type="text" class="moeda-input" id="${c}-moeda" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="sub-row">
+          <span class="sub-row-lbl">Subtotal Dinheiro</span>
+          <span class="sub-row-val" id="${c}-sub-din">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar purple"></div>Bernadete / Vale</div>
+          <span class="info-tag">Informativo</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Bernadete <span class="field-hint">retirada do operador</span></div>
+          <input type="text" class="field-input" id="${c}-bernadete" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="field">
+          <div class="field-label">Vale</div>
+          <input type="text" class="field-input" id="${c}-vale" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar green"></div>Meios de Pagamento</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Depósito</div>
+          <input type="text" class="field-input" id="${c}-deposito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="field">
+          <div class="field-label">PIX</div>
+          <input type="text" class="field-input" id="${c}-pix" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <hr class="div">
+        <div class="field">
+          <div class="field-label">Crédito <span class="field-hint">valor bruto recebido</span></div>
+          <input type="text" class="field-input" id="${c}-credito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="field">
+          <div class="field-label">Taxa de Crédito <span class="field-hint">será descontada</span></div>
+          <input type="text" class="field-input neg" id="${c}-taxa" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div class="sub-row">
+          <span class="sub-row-lbl">Crédito Líquido</span>
+          <span class="sub-row-val" id="${c}-cred-liq">R$ 0,00</span>
+        </div>
+        <hr class="div">
+        <div class="field">
+          <div class="field-label">Débito</div>
+          <input type="text" class="field-input" id="${c}-debito" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar yellow"></div>Conferência / Sistema</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Relatório IMOB <span class="field-hint">valor do sistema</span></div>
+          <input type="text" class="field-input" id="${c}-imob" placeholder="0,00" oninput="calcularCaixa('${c}')">
+        </div>
+        <div id="${c}-diff-block" class="diff-block">
+          <div>
+            <div class="diff-info-label" id="${c}-diff-label">Aguardando IMOB</div>
+            <div class="diff-info-sub">Diferença caixa × sistema</div>
+          </div>
+          <div class="diff-val dim" id="${c}-diff-val">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-bar"></div>Anotações</div>
+        </div>
+        ${[1,2,3,4,5,6,7,8].map(i => `
+        <div class="anot-row">
+          <span class="anot-num">${i}.</span>
+          <input type="text" class="anot-input" id="${c}-anot-${i}" placeholder="Observação ${i}...">
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══ UTILITÁRIOS ═══
+function pv(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const v = el.value.replace(/\./g,'').replace(',','.').replace(/[^\d.\-]/g,'');
+  return parseFloat(v) || 0;
+}
+
+function fmt(n) {
+  return 'R$ ' + Math.abs(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function fmtShort(n) {
+  if (Math.abs(n) >= 1000) return 'R$ ' + (Math.abs(n)/1000).toFixed(1) + 'k';
+  return fmt(n);
+}
+
+function fmtSigned(n) {
+  if (Math.abs(n) < 0.005) return 'R$ 0,00';
+  return (n > 0 ? '+ ' : '- ') + fmt(n);
+}
+
+function setEl(id, txt, extraClass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = txt;
+  if (extraClass !== undefined) el.className = extraClass;
+}
+
+// ═══ CALCULAR CAIXA ═══
+function calcularCaixa(c) {
+  let totalNotas = 0;
+  NOTAS.forEach(n => {
+    const qty = pv(`${c}-nota-${n.val}`);
+    const sub = qty * n.val;
+    totalNotas += sub;
+    const el = document.getElementById(`${c}-nota-${n.val}-val`);
+    if (el) {
+      el.textContent = fmt(sub);
+      el.className = 'nota-sub' + (sub > 0 ? ' has-val' : '');
+    }
+  });
+
+  const moeda    = pv(`${c}-moeda`);
+  const dinTotal = totalNotas + moeda;
+  setEl(`${c}-sub-din`, fmt(dinTotal));
+
+  const pix       = pv(`${c}-pix`);
+  const credBruto = pv(`${c}-credito`);
+  const taxa      = pv(`${c}-taxa`);
+  const credLiq   = credBruto - taxa;
+  const debito    = pv(`${c}-debito`);
+  const deposito  = pv(`${c}-deposito`);
+  const abertura  = pv(`${c}-abertura`);
+
+  setEl(`${c}-cred-liq`, fmt(credLiq));
+
+  const total = dinTotal + pix + credLiq + debito + deposito - abertura;
+  setEl(`${c}-total-badge`, fmt(total));
+
+  // Badge na aba
+  const tbEl = document.getElementById(`tb-${c}`);
+  if (tbEl) tbEl.textContent = fmtShort(total);
+
+  // Diff IMOB
+  const imob = pv(`${c}-imob`);
+  const db   = document.getElementById(`${c}-diff-block`);
+  if (db) {
+    if (imob === 0) {
+      db.className = 'diff-block';
+      setEl(`${c}-diff-label`, 'Aguardando IMOB');
+      setEl(`${c}-diff-val`, '—', 'diff-val dim');
+    } else {
+      const diff = total - imob;
+      if (Math.abs(diff) < 0.05) {
+        db.className = 'diff-block ok';
+        setEl(`${c}-diff-label`, '✓ Caixa conferido');
+        setEl(`${c}-diff-val`, 'R$ 0,00', 'diff-val ok');
+      } else {
+        db.className = diff > 0 ? 'diff-block warn' : 'diff-block err';
+        setEl(`${c}-diff-label`, diff > 0 ? 'Superávit' : 'Déficit');
+        setEl(`${c}-diff-val`, fmtSigned(diff), diff > 0 ? 'diff-val warn' : 'diff-val err');
+      }
+    }
+  }
+
+  calcularTudo();
+}
+
+// ═══ CALCULAR TUDO ═══
+function calcularTudo() {
+  const data = {};
+  let riTotal = 0, tdTotal = 0;
+  let sumDin = 0, sumPix = 0, sumCred = 0, sumDeb = 0, sumDep = 0;
+  let bernTotal = 0, valeTotal = 0;
+
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    let notas = 0;
+    NOTAS.forEach(n => notas += pv(`${c}-nota-${n.val}`) * n.val);
+    const moeda = pv(`${c}-moeda`);
+    const din   = notas + moeda;
+    const pix   = pv(`${c}-pix`);
+    const cred  = pv(`${c}-credito`) - pv(`${c}-taxa`);
+    const deb   = pv(`${c}-debito`);
+    const dep   = pv(`${c}-deposito`);
+    const aber  = pv(`${c}-abertura`);
+    const bern  = pv(`${c}-bernadete`);
+    const vale  = pv(`${c}-vale`);
+    const tot   = din + pix + cred + deb + dep - aber;
+
+    data[c] = {din, pix, cred, deb, dep, tot};
+    bernTotal += bern; valeTotal += vale;
+    sumDin += din; sumPix += pix; sumCred += cred; sumDeb += deb; sumDep += dep;
+    if (cfg.tipo === 'RI') riTotal += tot;
+    else                   tdTotal += tot;
+  });
+
+  const geral = riTotal + tdTotal;
+
+  // Tabela
+  const map = [['nikolle','n'],['miguel','m'],['rheynz','r'],['onr','o'],['tdpj','t']];
+  map.forEach(([k,p]) => {
+    const d = data[k] || {};
+    setEl(`g-${p}-din`,  fmt(d.din||0));
+    setEl(`g-${p}-pix`,  fmt(d.pix||0));
+    setEl(`g-${p}-cred`, fmt(d.cred||0));
+    setEl(`g-${p}-deb`,  fmt(d.deb||0));
+    setEl(`g-${p}-dep`,  fmt(d.dep||0));
+    setEl(`g-${p}-tot`,  fmt(d.tot||0));
+  });
+
+  setEl('g-sum-din',  fmt(sumDin));
+  setEl('g-sum-pix',  fmt(sumPix));
+  setEl('g-sum-cred', fmt(sumCred));
+  setEl('g-sum-deb',  fmt(sumDeb));
+  setEl('g-sum-dep',  fmt(sumDep));
+  setEl('g-sum-tot',  fmt(geral));
+  setEl('g-total-badge', fmt(geral));
+  setEl('tb-geral', fmtShort(geral));
+  setEl('g-ri-total', fmt(riTotal));
+  setEl('g-td-total', fmt(tdTotal));
+  setEl('g-ritd', fmt(geral));
+  setEl('g-bern-total', fmt(bernTotal));
+  setEl('g-vale-total', fmt(valeTotal));
+
+  // ANSATA
+  const ansata = pv('ansata-input');
+  if (ansata > 0) {
+    setEl('g-ansata-val', fmt(ansata));
+    const diff = geral - ansata;
+    if (Math.abs(diff) < 0.05) setEl('g-ansata-diff', '✓ Conferido', 'sub-row-val');
+    else setEl('g-ansata-diff', fmtSigned(diff), diff > 0 ? 'sub-row-val' : 'sub-row-val neg');
+  } else {
+    setEl('g-ansata-val', '—');
+    setEl('g-ansata-diff', '—', 'sub-row-val dim');
+  }
+
+  // IMOB global
+  const imob = pv('imob-input');
+  const db   = document.getElementById('g-diff-block');
+  if (imob === 0) {
+    if (db) db.className = 'diff-block';
+    setEl('g-diff-label', 'Aguardando relatório IMOB');
+    setEl('g-diff-val', '—', 'diff-val dim');
+  } else {
+    const diff = geral - imob;
+    if (Math.abs(diff) < 0.05) {
+      if (db) db.className = 'diff-block ok';
+      setEl('g-diff-label', '✓ Caixa conferido');
+      setEl('g-diff-val', 'R$ 0,00', 'diff-val ok');
+    } else {
+      if (db) db.className = diff > 0 ? 'diff-block warn' : 'diff-block err';
+      setEl('g-diff-label', diff > 0 ? 'Superávit' : 'Déficit');
+      setEl('g-diff-val', fmtSigned(diff), diff > 0 ? 'diff-val warn' : 'diff-val err');
+    }
+  }
+}
+
+// ═══ TABS ═══
+function switchTab(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`page-${id}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ═══ SALVAR / CARREGAR ═══
+function coletarDados() {
+  const obj = {
+    date:   document.getElementById('mainDate').value,
+    ansata: document.getElementById('ansata-input').value,
+    imob:   document.getElementById('imob-input').value,
+  };
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    obj[c] = {};
+    NOTAS.forEach(n => obj[c][`n${n.val}`] = document.getElementById(`${c}-nota-${n.val}`)?.value || '');
+    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob'].forEach(f => {
+      obj[c][f] = document.getElementById(`${c}-${f}`)?.value || '';
+    });
+    for (let i=1; i<=8; i++) obj[c][`a${i}`] = document.getElementById(`${c}-anot-${i}`)?.value || '';
+  });
+  return obj;
+}
+
+function aplicarDados(obj) {
+  if (!obj) return;
+  if (obj.date)   document.getElementById('mainDate').value = obj.date;
+  if (obj.ansata) document.getElementById('ansata-input').value = obj.ansata;
+  if (obj.imob)   document.getElementById('imob-input').value = obj.imob;
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    if (!obj[c]) return;
+    NOTAS.forEach(n => { const el = document.getElementById(`${c}-nota-${n.val}`); if(el) el.value = obj[c][`n${n.val}`]||''; });
+    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob'].forEach(f => {
+      const el = document.getElementById(`${c}-${f}`); if(el) el.value = obj[c][f]||'';
+    });
+    for (let i=1; i<=8; i++) { const el = document.getElementById(`${c}-anot-${i}`); if(el) el.value = obj[c][`a${i}`]||''; }
+    calcularCaixa(c);
+  });
+  calcularTudo();
+}
+
+function salvarDados() {
+  try {
+    localStorage.setItem('caixa_cartorio_v2', JSON.stringify(coletarDados()));
+    showToast('✓ Dados salvos');
+  } catch(e) { showToast('Erro ao salvar'); }
+}
+
+function resetData() {
+  if (!confirm('Resetar todos os dados?')) return;
+  localStorage.removeItem('caixa_cartorio_v2');
+  location.reload();
+}
+
+// ═══ TOAST ═══
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══ PDF ═══
+function gerarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc  = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const data = coletarDados();
+  const dateEl = document.getElementById('mainDate');
+  const dateStr = dateEl.value
+    ? new Date(dateEl.value + 'T12:00:00').toLocaleDateString('pt-BR')
+    : new Date().toLocaleDateString('pt-BR');
+
+  const W = 210, M = 15;
+  let y = 0;
+
+  // Helpers
+  const bg = (r,g,b) => { doc.setFillColor(r,g,b); };
+  const fc = (r,g,b) => { doc.setTextColor(r,g,b); };
+  const fs = (sz,bold=false) => { doc.setFontSize(sz); doc.setFont('helvetica', bold?'bold':'normal'); };
+
+  const txt = (text, x, yy, opts) => { doc.text(text, x, yy, opts); };
+  const addY = (dy) => { y += dy; };
+
+  // check page break
+  const checkPage = (needed=20) => {
+    if (y + needed > 285) {
+      doc.addPage();
+      // white bg
+      bg(255,255,255); doc.rect(0,0,W,297,'F');
+      y = 16;
+    }
+  };
+
+  // ── PAGE 1: RESUMO ──
+  bg(255,255,255); doc.rect(0,0,W,297,'F');
+
+  // Header band
+  bg(20,30,55); doc.rect(0,0,W,28,'F');
+  fs(14,true); fc(255,255,255);
+  txt('FECHAMENTO GERAL DE CAIXA', W/2, 11, {align:'center'});
+  fs(9,false); fc(160,175,210);
+  txt(`Data: ${dateStr}`, W/2, 18, {align:'center'});
+  txt('Cartório · Sistema de Caixa', W/2, 23, {align:'center'});
+  y = 36;
+
+  // Total Geral
+  const totals = {};
+  let geral = 0, riTotal = 0, tdTotal = 0;
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    const cd = data[c] || {};
+    let notas = 0;
+    NOTAS.forEach(n => notas += (parseFloat((cd[`n${n.val}`]||'').replace(',','.')) || 0) * n.val);
+    const moeda = parseFloat((cd.moeda||'').replace(',','.')) || 0;
+    const din   = notas + moeda;
+    const pix   = parseFloat((cd.pix||'').replace(',','.')) || 0;
+    const cred  = (parseFloat((cd.credito||'').replace(',','.')) || 0) - (parseFloat((cd.taxa||'').replace(',','.')) || 0);
+    const deb   = parseFloat((cd.debito||'').replace(',','.')) || 0;
+    const dep   = parseFloat((cd.deposito||'').replace(',','.')) || 0;
+    const aber  = parseFloat((cd.abertura||'').replace(',','.')) || 0;
+    const tot   = din + pix + cred + deb + dep - aber;
+    totals[c] = {din, pix, cred, deb, dep, tot};
+    geral += tot;
+    if (cfg.tipo === 'RI') riTotal += tot; else tdTotal += tot;
+  });
+
+  // Big total box
+  bg(240,248,255); doc.roundedRect(M, y, W-M*2, 20, 3, 3, 'F');
+  fs(10,false); fc(80,100,140);
+  txt('TOTAL GERAL DOS CAIXAS', M+8, y+7);
+  fs(14,true); fc(20,140,80);
+  txt(`R$ ${geral.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M-2, y+12, {align:'right'});
+  addY(28);
+
+  // Stats row
+  const stats = [
+    ['Registro de Imóveis', riTotal, [40,80,180]],
+    ['Títulos e Documentos', tdTotal, [180,130,0]],
+  ];
+  const sw = (W-M*2-8) / 2;
+  stats.forEach(([lbl,val,clr],i) => {
+    const sx = M + i*(sw+8);
+    bg(248,250,255); doc.rect(sx, y, sw, 16, 'F');
+    doc.setDrawColor(210,220,240); doc.rect(sx, y, sw, 16, 'S');
+    fs(8,false); fc(...clr);
+    txt(lbl.toUpperCase(), sx+6, y+6);
+    fs(11,true); fc(30,40,60);
+    txt(`R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, sx+6, y+13);
+  });
+  addY(24);
+
+  // Table header
+  const cols = [60,25,25,28,20,20,27]; // widths
+  const heads = ['Caixa','Dinheiro','PIX','Crédito Líq.','Débito','Depós.','Total'];
+  bg(30,40,70); doc.rect(M, y, W-M*2, 8, 'F');
+  fs(7.5,true); fc(180,200,240);
+  let cx = M+2;
+  heads.forEach((h,i) => {
+    txt(h, i===0 ? cx : cx+cols[i]-2, y+5.5, {align: i===0?'left':'right'});
+    cx += cols[i];
+  });
+  addY(8);
+
+  CAIXAS.forEach((cfg, ri) => {
+    const d = totals[cfg.id] || {};
+    const rowBg = ri % 2 === 0 ? [250,252,255] : [244,247,252];
+    bg(...rowBg); doc.rect(M, y, W-M*2, 8, 'F');
+    fs(8, false);
+    const vals = [
+      cfg.nome,
+      `R$ ${(d.din||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+      `R$ ${(d.pix||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+      `R$ ${(d.cred||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+      `R$ ${(d.deb||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+      `R$ ${(d.dep||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+      `R$ ${(d.tot||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+    ];
+    cx = M+2;
+    vals.forEach((v,i) => {
+      if (i === 0) { fc(30,40,70); txt(v, cx, y+5.5); }
+      else if (i === vals.length-1) { fc(20,130,70); doc.setFont('helvetica','bold'); txt(v, cx+cols[i]-2, y+5.5, {align:'right'}); doc.setFont('helvetica','normal'); }
+      else { fc(80,90,110); txt(v, cx+cols[i]-2, y+5.5, {align:'right'}); }
+      cx += cols[i];
+    });
+    addY(8);
+  });
+
+  // Total row
+  bg(220,235,255); doc.rect(M, y, W-M*2, 9, 'F');
+  fs(9,true); fc(20,40,100);
+  txt('TOTAL GERAL', M+2, y+6);
+  fc(20,130,70);
+  txt(`R$ ${geral.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M-2, y+6, {align:'right'});
+  addY(16);
+
+  // IMOB / ANSATA
+  const imobVal   = parseFloat((data.imob||'').replace(',','.')) || 0;
+  const ansataVal = parseFloat((data.ansata||'').replace(',','.')) || 0;
+
+  if (imobVal > 0 || ansataVal > 0) {
+    checkPage(30);
+    fs(9,true); fc(50,60,90);
+    txt('CONFERÊNCIA', M, y); addY(6);
+    doc.setDrawColor(200,210,230); doc.line(M, y, W-M, y); addY(5);
+
+    if (imobVal > 0) {
+      const diffImob = geral - imobVal;
+      fs(8,false); fc(100,110,140);
+      txt('IMOB (sistema):', M, y);
+      fc(40,50,80); txt(`R$ ${imobVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+      addY(5);
+      txt('Diferença:', M, y);
+      if (Math.abs(diffImob) < 0.05) { fc(20,160,80); txt('✓ Conferido — R$ 0,00', W-M, y, {align:'right'}); }
+      else { fc(diffImob > 0 ? 180:200, diffImob>0?130:40, 20); txt(fmtSigned(diffImob), W-M, y, {align:'right'}); }
+      addY(8);
+    }
+    if (ansataVal > 0) {
+      const diffAnsata = geral - ansataVal;
+      fs(8,false); fc(100,110,140);
+      txt('ANSATA (sistema):', M, y);
+      fc(40,50,80); txt(`R$ ${ansataVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+      addY(5);
+      txt('Diferença:', M, y);
+      if (Math.abs(diffAnsata) < 0.05) { fc(20,160,80); txt('✓ Conferido — R$ 0,00', W-M, y, {align:'right'}); }
+      else { fc(200,60,40); txt(fmtSigned(diffAnsata), W-M, y, {align:'right'}); }
+      addY(8);
+    }
+  }
+
+  // ── PAGE 2: DETALHAMENTO ──
+  doc.addPage();
+  bg(255,255,255); doc.rect(0,0,W,297,'F');
+  bg(20,30,55); doc.rect(0,0,W,18,'F');
+  fs(11,true); fc(255,255,255); txt('DETALHAMENTO POR CAIXA', W/2, 10, {align:'center'});
+  fs(8,false); fc(160,180,220); txt(dateStr, W/2, 15, {align:'center'});
+  y = 26;
+
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    const cd = data[c] || {};
+    checkPage(60);
+
+    // Caixa header
+    bg(235,242,255); doc.rect(M, y, W-M*2, 9, 'F');
+    fs(10,true); fc(20,40,100);
+    txt(cfg.nome.toUpperCase(), M+3, y+6);
+    const cTot = totals[c]?.tot || 0;
+    fc(20,130,70);
+    txt(`R$ ${cTot.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M-2, y+6, {align:'right'});
+    addY(12);
+
+    // Notas
+    NOTAS.forEach(n => {
+      const qty = parseFloat((cd[`n${n.val}`]||'').replace(',','.')) || 0;
+      if (qty > 0) {
+        checkPage(6);
+        fs(8,false); fc(80,90,110);
+        txt(`  ${n.lbl} × ${qty}`, M, y);
+        fc(40,50,80);
+        txt(`R$ ${(qty*n.val).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+        addY(5);
+      }
+    });
+    const moeda = parseFloat((cd.moeda||'').replace(',','.')) || 0;
+    if (moeda > 0) {
+      fs(8,false); fc(80,90,110); txt('  Moeda/Troco', M, y);
+      fc(40,50,80); txt(`R$ ${moeda.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+      addY(5);
+    }
+
+    const payments = [
+      ['  PIX', cd.pix, false],
+      ['  Crédito (bruto)', cd.credito, false],
+      ['  Taxa Crédito (-)', cd.taxa, true],
+      ['  Débito', cd.debito, false],
+      ['  Depósito', cd.deposito, false],
+      ['  Abertura (-)', cd.abertura, true],
+      ['  Bernadete', cd.bernadete, false, true],
+      ['  Vale', cd.vale, false, true],
+    ];
+    payments.forEach(([lbl, raw, isNeg, isInfo]) => {
+      const v = parseFloat((raw||'').replace(',','.')) || 0;
+      if (v !== 0) {
+        checkPage(6);
+        fs(8,false);
+        fc(isInfo ? 130:80, isInfo ? 100:90, isInfo ? 170:110);
+        txt(lbl + (isInfo?' (info)':''), M, y);
+        fc(isNeg ? 200 : 40, isNeg ? 60 : 50, isNeg ? 40 : 80);
+        txt(`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'});
+        addY(5);
+      }
+    });
+
+    // Anotações
+    const anots = [];
+    for (let i=1; i<=8; i++) if (cd[`a${i}`]) anots.push(`${i}. ${cd[`a${i}`]}`);
+    if (anots.length) {
+      checkPage(8);
+      fs(7.5, true); fc(120,130,160); txt('  ANOTAÇÕES:', M, y); addY(4.5);
+      anots.forEach(a => { checkPage(5); fs(7.5,false); fc(100,110,140); txt('    '+a, M, y); addY(4.5); });
+    }
+
+    // IMOB individual
+    const cImob = parseFloat((cd.imob||'').replace(',','.')) || 0;
+    if (cImob > 0) {
+      checkPage(8);
+      const cTotVal = totals[c]?.tot || 0;
+      const diffI   = cTotVal - cImob;
+      fs(8,false); fc(100,110,140);
+      txt('  IMOB:', M, y);
+      const diffTxt = Math.abs(diffI) < 0.05 ? '✓ OK' : (diffI > 0 ? `+R$ ${diffI.toFixed(2)}` : `-R$ ${Math.abs(diffI).toFixed(2)}`);
+      fc(Math.abs(diffI) < 0.05 ? 20 : 200, Math.abs(diffI) < 0.05 ? 160 : 60, Math.abs(diffI) < 0.05 ? 80 : 40);
+      txt(diffTxt, W-M, y, {align:'right'});
+      addY(5);
+    }
+
+    doc.setDrawColor(210,220,240); doc.line(M, y, W-M, y);
+    addY(8);
+  });
+
+  // Footer
+  fs(7.5,false); fc(150,160,180);
+  txt(`Gerado em ${new Date().toLocaleString('pt-BR')} · Fechamento de Caixa Cartório`, W/2, 290, {align:'center'});
+
+  doc.save(`fechamento-caixa-${dateStr.replace(/\//g,'-')}.pdf`);
+  showToast('✓ PDF gerado com sucesso!');
+}
+
+// ═══ INIT ═══
+function init() {
+  CAIXAS.forEach(cfg => {
+    const el = document.getElementById(`caixa-${cfg.id}`);
+    if (el) el.innerHTML = renderCaixa(cfg);
+  });
+
+  document.getElementById('mainDate').value = new Date().toISOString().split('T')[0];
+
+  try {
+    const saved = localStorage.getItem('caixa_cartorio_v2');
+    if (saved) aplicarDados(JSON.parse(saved));
+    else CAIXAS.forEach(cfg => calcularCaixa(cfg.id));
+  } catch(e) {
+    CAIXAS.forEach(cfg => calcularCaixa(cfg.id));
+  }
+
+  setInterval(salvarDados, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
