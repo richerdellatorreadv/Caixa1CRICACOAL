@@ -7,6 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-database-compat.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
@@ -410,11 +412,11 @@ hr.div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 <script>
 // ═══ DEFAULT CONFIGURATION ═══
 const DEFAULT_CAIXAS = [
-  { id:'nikolle', nome:'Caixa 1 — NIKOLLE', tipo:'RI' },
-  { id:'miguel',  nome:'Caixa 2 — MIGUEL',  tipo:'RI' },
-  { id:'rheynz',  nome:'Caixa 3 — RHEYNZ',  tipo:'RI' },
-  { id:'onr',     nome:'Caixa 4 — ONR',     tipo:'ONR' },
-  { id:'tdpj',    nome:'Títulos e Docs',    tipo:'TD'  }
+  { id:'cx1',   nome:'Caixa 1',  tipo:'RI' },
+  { id:'cx2',   nome:'Caixa 2',  tipo:'RI' },
+  { id:'cx3',   nome:'Caixa 3',  tipo:'RI' },
+  { id:'onr',   nome:'Caixa ONR',tipo:'ONR' },
+  { id:'tdpj',  nome:'Títulos e Docs', tipo:'TD'  }
 ];
 const NOTAS = [ {lbl:'R$ 100',val:100}, {lbl:'R$ 50',val:50}, {lbl:'R$ 20',val:20}, {lbl:'R$ 10',val:10}, {lbl:'R$ 5',val:5}, {lbl:'R$ 2',val:2} ];
 
@@ -487,7 +489,15 @@ function removeCaixaFromList(index) { if(confirm("Remover este caixa da exibiç�
 function addCaixaToList() { const newId = 'cx_' + Math.floor(Math.random() * 1000000); editingCaixas.push({ id: newId, nome: 'Novo Caixa', tipo: 'RI' }); renderCaixaEditList(); }
 function saveConfigCaixas() {
   if(editingCaixas.length === 0) { alert("Você precisa ter pelo menos um caixa."); return; }
-  localStorage.setItem(getStorageKey(), JSON.stringify(coletarDados())); localStorage.setItem('caixa_config_v1', JSON.stringify(editingCaixas)); location.reload();
+  salvarDados(false); // Salva os dados financeiros pendentes antes de mudar a config
+  localStorage.setItem(getStorageKey(), JSON.stringify(coletarDados())); 
+  localStorage.setItem('caixa_config_v1', JSON.stringify(editingCaixas)); 
+  db.ref('config/caixas').set(editingCaixas).then(() => {
+    location.reload();
+  }).catch(e => {
+    alert("Erro ao salvar configurações na nuvem: " + e.message);
+    location.reload();
+  });
 }
 
 // ═══ THEME & CHARTS ═══
@@ -519,7 +529,7 @@ function addAnotacao(c, val = '') {
   wrap.appendChild(div); lucide.createIcons(); atualizarNumAnots(c);
 }
 function removeAnotacao(btn, c) { btn.parentElement.remove(); atualizarNumAnots(c); }
-function atualizarNumAnots(c) { const rows = document.getElementById(`${c}-anots-wrap`).children; for (let i = 0; i < rows.length; i++) rows[i].querySelector('.anot-num').textContent = (i + 1) + '.'; salvarDados(false); }
+function atualizarNumAnots(c) { const rows = document.getElementById(`${c}-anots-wrap`).children; for (let i = 0; i < rows.length; i++) rows[i].querySelector('.anot-num').textContent = (i + 1) + '.'; salvarDadosDebounced(); }
 function pv(id) { const el = document.getElementById(id); if (!el) return 0; const v = el.value.replace(/\./g,'').replace(',','.'); return parseFloat(v) || 0; }
 function fmt(n) { 
   if(n < -0.005) return '- R$ ' + Math.abs(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -636,6 +646,8 @@ function calcularTudo() {
     if (Math.abs(diff) < 0.05) { if(db) db.className = 'diff-block ok'; setEl('g-diff-label', 'Conferido — Fechamento correto'); setEl('g-diff-val', 'OK', 'diff-val ok'); triggerFlash('g-diff-block', diff, 'geral'); } 
     else { if(db) db.className = diff > 0 ? 'diff-block warn' : 'diff-block err'; setEl('g-diff-label', diff > 0 ? 'Excedente nos caixas' : 'Diferença a menor'); setEl('g-diff-val', fmtSigned(diff), diff > 0 ? 'diff-val warn' : 'diff-val err'); lastDiffs['geral'] = false; }
   } else { if(db) db.className = 'diff-block'; setEl('g-diff-label', 'Aguardando lançamento do IMOB'); setEl('g-diff-val', '—', 'diff-val dim'); lastDiffs['geral'] = false; }
+  
+  salvarDadosDebounced();
 }
 
 function switchTab(id, btn) {
@@ -651,13 +663,22 @@ function updateFloatingActive() {
 
 // ═══ DASHBOARD MENSAL ═══
 function initDashboardMonth() { const d = new Date(); const m = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`; document.getElementById('dashboard-month').value = m; }
-function loadDashboardData() {
+async function loadDashboardData() {
   const monthInput = document.getElementById('dashboard-month').value; if(!monthInput) return;
+  setEl('dash-tot-geral', 'Buscando...');
+  
   let monthlyTotals = { geral: 0, fisico: 0, eletronico: 0 }; let dailyData = [];
-  for(let i=0; i<localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if(key.startsWith('caixa_v3_' + monthInput)) {
-      const dateStr = key.replace('caixa_v3_', ''); const rawData = JSON.parse(localStorage.getItem(key));
+  
+  try {
+    const snapshot = await db.ref('caixas')
+      .orderByKey()
+      .startAt(monthInput)
+      .endAt(monthInput + '\uf8ff')
+      .once('value');
+      
+    snapshot.forEach(child => {
+      const dateStr = child.key;
+      const rawData = child.val();
       let dayDin = 0, dayPix = 0, dayCredB = 0, dayTaxa = 0, dayDeb = 0, dayTot = 0;
       Object.keys(rawData).forEach(cxKey => {
         if(cxKey === 'ansata' || cxKey === 'imob' || cxKey === 'maquininha') return;
@@ -674,12 +695,13 @@ function loadDashboardData() {
       });
       dailyData.push({ date: dateStr, day: dateStr.split('-')[2], din: dayDin, pix: dayPix, cred: dayCredB, tax: dayTaxa, deb: dayDeb, tot: dayTot });
       monthlyTotals.geral += dayTot; monthlyTotals.fisico += dayDin; monthlyTotals.eletronico += (dayPix + dayCredB - dayTaxa + dayDeb);
-    }
-  }
+    });
+  } catch(e) { console.error('Erro ao buscar dashboard:', e); }
+
   dailyData.sort((a,b) => a.date.localeCompare(b.date));
   setEl('dash-tot-geral', fmt(monthlyTotals.geral)); setEl('dash-tot-fisico', fmt(monthlyTotals.fisico)); setEl('dash-tot-eletronico', fmt(monthlyTotals.eletronico));
   let tbody = ''; dailyData.forEach(d => { tbody += `<tr><td>${d.date.split('-').reverse().join('/')}</td><td>${fmt(d.din)}</td><td>${fmt(d.pix)}</td><td>${fmt(d.cred)}</td><td style="color:var(--accent-r)">${fmt(d.tax)}</td><td>${fmt(d.deb)}</td><td class="v-green">${fmt(d.tot)}</td></tr>`; });
-  if(dailyData.length === 0) tbody = `<tr><td colspan="7" style="text-align:center;">Nenhum dado salvo para este mês.</td></tr>`;
+  if(dailyData.length === 0) tbody = `<tr><td colspan="7" style="text-align:center;">Nenhum dado salvo para este mês no servidor.</td></tr>`;
   document.getElementById('dash-table-body').innerHTML = tbody; renderHistoryChart(dailyData);
 }
 
@@ -769,10 +791,10 @@ function aplicarSaldoProximoDia(c) {
   nextData[c].abertura = val.toLocaleString('pt-BR', {minimumFractionDigits:2});
   
   localStorage.setItem(nextKey, JSON.stringify(nextData));
-  // Tenta persistir no JSONBin silenciosamente
+  // Tenta persistir no Firestore silenciosamente
   (async () => {
     try {
-      await jbPut(nextDateStr, nextData);
+      await db.collection('caixas').doc(nextDateStr).set({ [c]: { abertura: val.toLocaleString('pt-BR', {minimumFractionDigits:2}) } }, { merge: true });
     } catch(e) { console.warn('Transferência salva só localmente:', e); }
   })();
 
@@ -782,64 +804,57 @@ function aplicarSaldoProximoDia(c) {
   showToast(`✓ Fundo de ${nextDateFormatted} definido!`);
 }
 
-// ═══ JSONBIN.IO SYNC CONFIG ═══
-const JB = {
-  masterKey: '$2a$10$o9mF7qRnz3mPf9X4TO.4M.fxoDAKIh903idqHRfg2yusL4heWivEq',
-  baseUrl:   'https://api.jsonbin.io/v3',
-  senha:     '1RICAC',
-  collectionName: 'CaixaCartorio'
+// ═══ FIREBASE SYNC CONFIG ═══
+const firebaseConfig = {
+  apiKey: "AIzaSyCxJv-Qvmkmvye33BvmEtdFIYcdRDNsbI4",
+  authDomain: "caixacartoriocac.firebaseapp.com",
+  databaseURL: "https://caixacartoriocac-default-rtdb.firebaseio.com",
+  projectId: "caixacartoriocac",
+  storageBucket: "caixacartoriocac.firebasestorage.app",
+  messagingSenderId: "403452733168",
+  appId: "1:403452733168:web:31cfbb948864166c860435"
 };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-function jbHeaders(withContent = false) {
-  const h = { 'X-Master-Key': JB.masterKey };
-  if (withContent) h['Content-Type'] = 'application/json';
-  return h;
+let unsubscribeSnapshot = null;
+let isRemoteUpdate = false;
+let saveTimeout = null;
+let lastKnownState = null;
+
+function getDeltaNested(current, previous) {
+  if (!previous) return current;
+  let delta = {}; let hasChanges = false;
+  
+  const allK1 = new Set([...Object.keys(current), ...Object.keys(previous)]);
+  
+  allK1.forEach(k1 => {
+    if (typeof current[k1] === 'object' && current[k1] !== null) {
+      const prevObj = (typeof previous[k1] === 'object' && previous[k1] !== null) ? previous[k1] : {};
+      const allK2 = new Set([...Object.keys(current[k1]), ...Object.keys(prevObj)]);
+      
+      allK2.forEach(k2 => {
+        if (current[k1][k2] !== prevObj[k2]) {
+          delta[`${k1}/${k2}`] = current[k1][k2] === undefined ? null : current[k1][k2];
+          hasChanges = true;
+        }
+      });
+    } else {
+      if (current[k1] !== previous[k1]) {
+        delta[k1] = current[k1] === undefined ? null : current[k1];
+        hasChanges = true;
+      }
+    }
+  });
+  return hasChanges ? delta : null;
 }
 
-// BinId é guardado no localStorage: 'jb_binid_YYYY-MM-DD'
-function jbGetCachedId(dateStr) { return localStorage.getItem(`jb_binid_${dateStr}`) || null; }
-function jbSetCachedId(dateStr, id) { localStorage.setItem(`jb_binid_${dateStr}`, id); }
-
-async function jbGet(dateStr) {
-  const binId = jbGetCachedId(dateStr);
-  if (!binId) return null;
-  try {
-    const r = await fetch(`${JB.baseUrl}/b/${binId}/latest`, { headers: jbHeaders() });
-    if (r.status === 404) { localStorage.removeItem(`jb_binid_${dateStr}`); return null; }
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j.record || null;
-  } catch(e) { console.warn('jbGet erro:', e); return null; }
+function salvarDadosDebounced() {
+  if (isRemoteUpdate) return;
+  if (saveTimeout) clearTimeout(saveTimeout);
+  setEl('last-saved', '⏳ Aguardando p/ salvar...');
+  saveTimeout = setTimeout(() => salvarDados(false), 1500);
 }
-
-async function jbPut(dateStr, content) {
-  const binId = jbGetCachedId(dateStr);
-  if (binId) {
-    // Atualiza bin existente
-    const r = await fetch(`${JB.baseUrl}/b/${binId}`, {
-      method: 'PUT',
-      headers: jbHeaders(true),
-      body: JSON.stringify(content)
-    });
-    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.message || r.status); }
-    return r.json();
-  } else {
-    // Cria novo bin e salva o ID gerado
-    const r = await fetch(`${JB.baseUrl}/b`, {
-      method: 'POST',
-      headers: { ...jbHeaders(true), 'X-Bin-Name': `caixa_${dateStr}`, 'X-Bin-Private': 'true' },
-      body: JSON.stringify(content)
-    });
-    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.message || r.status); }
-    const j = await r.json();
-    const newId = j.metadata && j.metadata.id;
-    if (newId) jbSetCachedId(dateStr, newId);
-    return j;
-  }
-}
-
-// ─── Mantido por compatibilidade com aplicarSaldoProximoDia ───
-const _shaCache = {};
 
 function getStorageKey() { return `caixa_v3_${document.getElementById('mainDate').value}`; }
 
@@ -849,25 +864,31 @@ function coletarDados() {
 }
 
 function _preencherFormulario(obj) {
-  document.querySelectorAll('input:not([type="date"]):not([type="month"])').forEach(i => i.value = '');
-  CAIXAS.forEach(cfg => { const wrap=document.getElementById(`${cfg.id}-anots-wrap`); if(wrap) wrap.innerHTML = ''; });
+  document.querySelectorAll('input:not([type="date"]):not([type="month"])').forEach(i => { if(i !== document.activeElement) i.value = ''; });
+  CAIXAS.forEach(cfg => { const wrap=document.getElementById(`${cfg.id}-anots-wrap`); if(wrap && !wrap.contains(document.activeElement)) wrap.innerHTML = ''; });
   if (!obj) { CAIXAS.forEach(cfg => addAnotacao(cfg.id)); CAIXAS.forEach(cfg => calcularCaixa(cfg.id)); return; }
-  if (obj.ansata) document.getElementById('ansata-input').value = obj.ansata;
-  if (obj.imob)   document.getElementById('imob-input').value   = obj.imob;
-  if (obj.maquininha) document.getElementById('maquininha-input').value = obj.maquininha;
+  
+  const setIfInactive = (id, val) => { const el = document.getElementById(id); if (el && el !== document.activeElement) el.value = val; };
+  if (obj.ansata) setIfInactive('ansata-input', obj.ansata);
+  if (obj.imob)   setIfInactive('imob-input', obj.imob);
+  if (obj.maquininha) setIfInactive('maquininha-input', obj.maquininha);
+  
   CAIXAS.forEach(cfg => {
     const c = cfg.id;
     if (!obj[c]) { addAnotacao(c); return; }
-    NOTAS.forEach(n => { const el=document.getElementById(`${c}-nota-${n.val}`); if(el) el.value=obj[c][`n${n.val}`]||''; });
-    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { const el=document.getElementById(`${c}-${f}`); if(el) el.value=obj[c][f]||''; });
+    NOTAS.forEach(n => setIfInactive(`${c}-nota-${n.val}`, obj[c][`n${n.val}`]||''));
+    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { setIfInactive(`${c}-${f}`, obj[c][f]||''); });
     if(obj[c]['abertura'] && parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0 > 0) {
       const statusEl = document.getElementById(`${c}-saldo-status`);
       if(statusEl && (!obj[c]['pix'] && !obj[c]['credito'] && !obj[c]['debito']))
-        statusEl.innerHTML = `<span style="color:var(--accent-y)">⚡ Fundo de Caixa Inicial pré-carregado: R$ ${(parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
+        statusEl.innerHTML = `<span style="color:var(--accent-y)">⚡ Fundo Inicial: R$ ${(parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
     }
-    let temAnotacao = false;
-    for(let i=1; i<=8; i++) { if(obj[c][`a${i}`] !== undefined) { addAnotacao(c, obj[c][`a${i}`]); temAnotacao = true; } }
-    if(!temAnotacao) addAnotacao(c);
+    const wrap = document.getElementById(`${c}-anots-wrap`);
+    if(wrap && !wrap.contains(document.activeElement)) {
+      let temAnotacao = false;
+      for(let i=1; i<=8; i++) { if(obj[c][`a${i}`] !== undefined) { addAnotacao(c, obj[c][`a${i}`]); temAnotacao = true; } }
+      if(!temAnotacao) addAnotacao(c);
+    }
   });
   CAIXAS.forEach(cfg => calcularCaixa(cfg.id));
 }
@@ -875,55 +896,74 @@ function _preencherFormulario(obj) {
 async function carregarDados() {
   const dateStr = document.getElementById('mainDate').value;
   const localKey = `caixa_v3_${dateStr}`;
-  setEl('last-saved', '🔄 Carregando...');
+  setEl('last-saved', '🔄 Conectando...');
 
-  // 1. Tenta buscar do JSONBin
-  const jbResult = await jbGet(dateStr);
-  if (jbResult) {
-    localStorage.setItem(localKey, JSON.stringify(jbResult));
-    _preencherFormulario(jbResult);
-    setEl('last-saved', '☁ Dados do servidor');
-    return;
+  if (unsubscribeSnapshot) {
+    db.ref('caixas/' + dateStr).off('value', unsubscribeSnapshot);
+    unsubscribeSnapshot = null;
   }
 
-  // 2. Fallback: localStorage
-  const saved = localStorage.getItem(localKey);
-  if (saved) {
-    try { _preencherFormulario(JSON.parse(saved)); } catch(e) { _preencherFormulario(null); }
-    setEl('last-saved', '💾 Dados locais (offline)');
-  } else {
-    _preencherFormulario(null);
-    setEl('last-saved', '');
-  }
+  unsubscribeSnapshot = db.ref('caixas/' + dateStr).on('value', (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      localStorage.setItem(localKey, JSON.stringify(data));
+      lastKnownState = JSON.parse(JSON.stringify(data));
+      isRemoteUpdate = true;
+      _preencherFormulario(data);
+      isRemoteUpdate = false;
+      setEl('last-saved', '☁ Sincronizado');
+    } else {
+      lastKnownState = null; // A nuvem está vazia, o próximo save precisa enviar tudo!
+      const saved = localStorage.getItem(localKey);
+      isRemoteUpdate = true;
+      if (saved) {
+        try { 
+          const parsed = JSON.parse(saved);
+          _preencherFormulario(parsed); 
+        } catch(e) { _preencherFormulario(null); }
+        setEl('last-saved', '💾 Dados locais (offline)');
+      } else {
+        _preencherFormulario(null);
+        setEl('last-saved', '');
+      }
+      isRemoteUpdate = false;
+    }
+  }, (error) => {
+    console.error("Erro no on(value): ", error);
+    setEl('last-saved', '⚠ Erro de conexão');
+  });
 }
 
 async function salvarDados(manual = false) {
   const dateStr = document.getElementById('mainDate').value;
   const dados = coletarDados();
   const localKey = `caixa_v3_${dateStr}`;
+  
+  const delta = getDeltaNested(dados, lastKnownState);
+  if (!delta && !manual) { setEl('last-saved', '☁ Sincronizado'); return; } // Nada para salvar
 
-  // Sempre salva localmente (cache imediato)
   localStorage.setItem(localKey, JSON.stringify(dados));
+  
+  const wasNull = !lastKnownState;
+  lastKnownState = JSON.parse(JSON.stringify(dados)); // Atualiza estado local otimista para não re-enviar
+  
   const now = new Date();
   const hhmm = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-  if (!manual) { setEl('last-saved', `💾 ${hhmm}`); return; }
-
-  // Salvamento manual → pede senha e envia ao GitHub
-  const senha = prompt('🔒 Digite a senha para salvar no servidor:');
-  if (senha === null) return; // cancelou
-  if (senha !== JB.senha) { showToast('❌ Senha incorreta!'); return; }
-
-  setEl('last-saved', '☁ Enviando...');
+  setEl('last-saved', '☁ Salvando...');
   try {
-    await jbPut(dateStr, dados);
-    localStorage.setItem(localKey, JSON.stringify(dados));
+    if (wasNull) {
+      await db.ref('caixas/' + dateStr).set(dados);
+    } else if (delta) {
+      await db.ref('caixas/' + dateStr).update(delta);
+    }
     setEl('last-saved', `☁ Salvo às ${hhmm}`);
-    showToast('✓ Salvo no servidor com sucesso!');
+    if (manual) showToast('✓ Salvo no servidor com sucesso!');
   } catch(e) {
-    console.error('Erro ao salvar no JSONBin:', e);
+    console.error('Erro ao salvar no RTDB:', e);
+    lastKnownState = null; // Invalida cache para tentar enviar tudo de novo depois
     setEl('last-saved', `💾 Local (erro servidor)`);
-    showToast('⚠ Salvo localmente. Erro no servidor: ' + e.message, 5000);
+    if (manual) showToast('⚠ Salvo localmente. Erro no servidor: ' + e.message, 5000);
   }
 }
 
@@ -1060,7 +1100,22 @@ function init() {
   const today = new Date().toLocaleDateString('en-CA'); document.getElementById('mainDate').value = today;
   carregarDados(); applyMathInputs(); lucide.createIcons();
   const observer = new MutationObserver((mutations) => { mutations.forEach((mutation) => { if (mutation.attributeName === 'data-theme') { lucide.createIcons(); } }); }); observer.observe(document.body, { attributes: true });
-  setInterval(() => salvarDados(false), 30000);
+
+  // Sincronização de configurações de caixas
+  db.ref('config/caixas').on('value', async (snap) => {
+    if (snap.exists()) {
+      const remoteConfig = snap.val();
+      const localConfigStr = localStorage.getItem('caixa_config_v1');
+      if (JSON.stringify(remoteConfig) !== localConfigStr) {
+        localStorage.setItem('caixa_config_v1', JSON.stringify(remoteConfig));
+        await salvarDados(false); // Salva inputs pendentes
+        location.reload(); // Recarrega para aplicar os novos caixas
+      }
+    } else {
+      // Se não houver configuração na nuvem, faz o upload da atual
+      db.ref('config/caixas').set(CAIXAS);
+    }
+  });
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
