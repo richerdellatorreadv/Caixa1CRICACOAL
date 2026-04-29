@@ -769,34 +769,143 @@ function aplicarSaldoProximoDia(c) {
   nextData[c].abertura = val.toLocaleString('pt-BR', {minimumFractionDigits:2});
   
   localStorage.setItem(nextKey, JSON.stringify(nextData));
-  
+  // Tenta persistir no GitHub silenciosamente
+  (async () => {
+    try {
+      const sha = _shaCache[nextDateStr] || null;
+      const result = await ghPut(ghPath(nextDateStr), nextData, sha);
+      _shaCache[nextDateStr] = result.content.sha;
+    } catch(e) { console.warn('Transferência salva só localmente:', e); }
+  })();
+
   const nextDateFormatted = currentDate.toLocaleDateString('pt-BR');
   const statusEl = document.getElementById(`${c}-saldo-status`);
   if(statusEl) statusEl.innerHTML = `<span style="color:var(--accent-g)">✓ R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})} registrado como Fundo de Caixa Inicial para ${nextDateFormatted}</span>`;
   showToast(`✓ Fundo de ${nextDateFormatted} definido!`);
 }
 
+// ═══ GITHUB SYNC CONFIG ═══
+const GH = {
+  owner: 'richerdellatorreadv',
+  repo:  'Caixa1CRICACOAL',
+  token: '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',
+  branch: 'main',
+  senha: '1RICAC'
+};
+
+function ghPath(dateStr) { return `dados/${dateStr}.json`; }
+function ghHeaders() { return { 'Authorization': `token ${GH.token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' }; }
+
+async function ghGet(path) {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`, { headers: ghHeaders() });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`GitHub GET ${r.status}`);
+    const j = await r.json();
+    return { content: JSON.parse(atob(j.content.replace(/\n/g,''))), sha: j.sha };
+  } catch(e) { console.warn('ghGet erro:', e); return null; }
+}
+
+async function ghPut(path, content, sha) {
+  const body = { message: `Fechamento ${path}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), branch: GH.branch };
+  if (sha) body.sha = sha;
+  const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+  if (!r.ok) { const err = await r.json(); throw new Error(err.message || r.status); }
+  return r.json();
+}
+
+// ─── SHA cache para evitar conflitos de ETag ───
+const _shaCache = {};
+
 function getStorageKey() { return `caixa_v3_${document.getElementById('mainDate').value}`; }
+
 function coletarDados() {
   const obj = { ansata: document.getElementById('ansata-input').value, imob: document.getElementById('imob-input').value, maquininha: document.getElementById('maquininha-input').value };
   CAIXAS.forEach(cfg => { const c = cfg.id; obj[c] = {}; NOTAS.forEach(n => obj[c][`n${n.val}`] = document.getElementById(`${c}-nota-${n.val}`)?.value || ''); ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { obj[c][f] = document.getElementById(`${c}-${f}`)?.value || ''; }); const anotsWrap = document.getElementById(`${c}-anots-wrap`); if(anotsWrap) { const anots = anotsWrap.querySelectorAll('.anot-input'); for(let i=0; i<anots.length; i++) { obj[c][`a${i+1}`] = anots[i].value; } } }); return obj;
 }
-function carregarDados() {
-  const saved = localStorage.getItem(getStorageKey()); document.querySelectorAll('input:not([type="date"]):not([type="month"])').forEach(i => i.value = ''); CAIXAS.forEach(cfg => { const wrap=document.getElementById(`${cfg.id}-anots-wrap`); if(wrap) wrap.innerHTML = ''; });
-  if (saved) {
-    const obj = JSON.parse(saved); if (obj.ansata) document.getElementById('ansata-input').value = obj.ansata; if (obj.imob) document.getElementById('imob-input').value = obj.imob; if (obj.maquininha) document.getElementById('maquininha-input').value = obj.maquininha;
-    CAIXAS.forEach(cfg => { const c = cfg.id; if (!obj[c]) { addAnotacao(c); return; } NOTAS.forEach(n => { const el=document.getElementById(`${c}-nota-${n.val}`); if(el) el.value=obj[c][`n${n.val}`]||''; }); ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { const el=document.getElementById(`${c}-${f}`); if(el) el.value=obj[c][f]||''; });
-      // Mostrar status de fundo pré-carregado se abertura veio de uma transferência
-      if(obj[c]['abertura'] && parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0 > 0) {
-        const statusEl = document.getElementById(`${c}-saldo-status`);
-        if(statusEl && (!obj[c]['pix'] && !obj[c]['credito'] && !obj[c]['debito'])) {
-          statusEl.innerHTML = `<span style="color:var(--accent-y)">⚡ Fundo de Caixa Inicial pré-carregado: R$ ${(parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
-        }
-      }
-      let temAnotacao = false; for(let i=1; i<=8; i++) { if(obj[c][`a${i}`] !== undefined) { addAnotacao(c, obj[c][`a${i}`]); temAnotacao = true; } } if(!temAnotacao) addAnotacao(c); });
-  } else { CAIXAS.forEach(cfg => addAnotacao(cfg.id)); } CAIXAS.forEach(cfg => calcularCaixa(cfg.id));
+
+function _preencherFormulario(obj) {
+  document.querySelectorAll('input:not([type="date"]):not([type="month"])').forEach(i => i.value = '');
+  CAIXAS.forEach(cfg => { const wrap=document.getElementById(`${cfg.id}-anots-wrap`); if(wrap) wrap.innerHTML = ''; });
+  if (!obj) { CAIXAS.forEach(cfg => addAnotacao(cfg.id)); CAIXAS.forEach(cfg => calcularCaixa(cfg.id)); return; }
+  if (obj.ansata) document.getElementById('ansata-input').value = obj.ansata;
+  if (obj.imob)   document.getElementById('imob-input').value   = obj.imob;
+  if (obj.maquininha) document.getElementById('maquininha-input').value = obj.maquininha;
+  CAIXAS.forEach(cfg => {
+    const c = cfg.id;
+    if (!obj[c]) { addAnotacao(c); return; }
+    NOTAS.forEach(n => { const el=document.getElementById(`${c}-nota-${n.val}`); if(el) el.value=obj[c][`n${n.val}`]||''; });
+    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { const el=document.getElementById(`${c}-${f}`); if(el) el.value=obj[c][f]||''; });
+    if(obj[c]['abertura'] && parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0 > 0) {
+      const statusEl = document.getElementById(`${c}-saldo-status`);
+      if(statusEl && (!obj[c]['pix'] && !obj[c]['credito'] && !obj[c]['debito']))
+        statusEl.innerHTML = `<span style="color:var(--accent-y)">⚡ Fundo de Caixa Inicial pré-carregado: R$ ${(parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
+    }
+    let temAnotacao = false;
+    for(let i=1; i<=8; i++) { if(obj[c][`a${i}`] !== undefined) { addAnotacao(c, obj[c][`a${i}`]); temAnotacao = true; } }
+    if(!temAnotacao) addAnotacao(c);
+  });
+  CAIXAS.forEach(cfg => calcularCaixa(cfg.id));
 }
-function salvarDados(manual = false) { localStorage.setItem(getStorageKey(), JSON.stringify(coletarDados())); const now = new Date(); setEl('last-saved', `Salvo às ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`); if(manual) showToast('✓ Salvo com sucesso!'); }
+
+async function carregarDados() {
+  const dateStr = document.getElementById('mainDate').value;
+  const localKey = `caixa_v3_${dateStr}`;
+  setEl('last-saved', '🔄 Carregando...');
+
+  // 1. Tenta buscar do GitHub
+  const ghResult = await ghGet(ghPath(dateStr));
+  if (ghResult) {
+    _shaCache[dateStr] = ghResult.sha;
+    localStorage.setItem(localKey, JSON.stringify(ghResult.content));
+    _preencherFormulario(ghResult.content);
+    setEl('last-saved', '☁ Dados do servidor');
+    return;
+  }
+
+  // 2. Fallback: localStorage
+  const saved = localStorage.getItem(localKey);
+  if (saved) {
+    try { _preencherFormulario(JSON.parse(saved)); } catch(e) { _preencherFormulario(null); }
+    setEl('last-saved', '💾 Dados locais (offline)');
+  } else {
+    _preencherFormulario(null);
+    setEl('last-saved', '');
+  }
+}
+
+async function salvarDados(manual = false) {
+  const dateStr = document.getElementById('mainDate').value;
+  const dados = coletarDados();
+  const localKey = `caixa_v3_${dateStr}`;
+
+  // Sempre salva localmente (cache imediato)
+  localStorage.setItem(localKey, JSON.stringify(dados));
+  const now = new Date();
+  const hhmm = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  if (!manual) { setEl('last-saved', `💾 ${hhmm}`); return; }
+
+  // Salvamento manual → pede senha e envia ao GitHub
+  const senha = prompt('🔒 Digite a senha para salvar no servidor:');
+  if (senha === null) return; // cancelou
+  if (senha !== GH.senha) { showToast('❌ Senha incorreta!'); return; }
+
+  setEl('last-saved', '☁ Enviando...');
+  try {
+    const sha = _shaCache[dateStr] || null;
+    const result = await ghPut(ghPath(dateStr), dados, sha);
+    _shaCache[dateStr] = result.content.sha;
+    localStorage.setItem(localKey, JSON.stringify(dados));
+    setEl('last-saved', `☁ Salvo às ${hhmm}`);
+    showToast('✓ Salvo no servidor com sucesso!');
+  } catch(e) {
+    console.error('Erro ao salvar no GitHub:', e);
+    setEl('last-saved', `💾 Local (erro servidor)`);
+    showToast('⚠ Salvo localmente. Erro no servidor: ' + e.message, 5000);
+  }
+}
+
 function mudarData() { carregarDados(); setEl('last-saved', ''); if(activeTabId === 'dashboard') loadDashboardData(); }
 
 // ═══ PDF DIDÁTICO ═══
