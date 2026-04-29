@@ -412,11 +412,11 @@ hr.div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 <script>
 // ═══ DEFAULT CONFIGURATION ═══
 const DEFAULT_CAIXAS = [
-  { id:'cx1',   nome:'Caixa 1',  tipo:'RI' },
-  { id:'cx2',   nome:'Caixa 2',  tipo:'RI' },
-  { id:'cx3',   nome:'Caixa 3',  tipo:'RI' },
-  { id:'onr',   nome:'Caixa ONR',tipo:'ONR' },
-  { id:'tdpj',  nome:'Títulos e Docs', tipo:'TD'  }
+  { id:'nikolle', nome:'Caixa 1',  tipo:'RI' },
+  { id:'miguel',  nome:'Caixa 2',  tipo:'RI' },
+  { id:'rheynz',  nome:'Caixa 3',  tipo:'RI' },
+  { id:'onr',     nome:'Caixa ONR',tipo:'ONR' },
+  { id:'tdpj',    nome:'Títulos e Docs', tipo:'TD'  }
 ];
 const NOTAS = [ {lbl:'R$ 100',val:100}, {lbl:'R$ 50',val:50}, {lbl:'R$ 20',val:20}, {lbl:'R$ 10',val:10}, {lbl:'R$ 5',val:5}, {lbl:'R$ 2',val:2} ];
 
@@ -1104,7 +1104,13 @@ function init() {
   // Sincronização de configurações de caixas
   db.ref('config/caixas').on('value', async (snap) => {
     if (snap.exists()) {
-      const remoteConfig = snap.val();
+      let remoteConfig = snap.val();
+      // MIGRATION: Se o Firebase ainda estiver com os IDs 'cx1', força a volta para os IDs antigos para não perder o histórico
+      if (remoteConfig && remoteConfig[0] && remoteConfig[0].id === 'cx1') {
+        await db.ref('config/caixas').set(DEFAULT_CAIXAS);
+        return;
+      }
+      
       const localConfigStr = localStorage.getItem('caixa_config_v1');
       if (JSON.stringify(remoteConfig) !== localConfigStr) {
         localStorage.setItem('caixa_config_v1', JSON.stringify(remoteConfig));
