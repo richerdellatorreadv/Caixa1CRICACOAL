@@ -727,44 +727,57 @@ function openMaloteModal() {
   html += `<tr><td>Moedas</td><td>—</td><td style="color:var(--text)">${fmt(gMoeda)}</td></tr></tbody></table>`;
   cont.innerHTML = html; setEl('malote-total', fmt(totNotas + gMoeda)); document.getElementById('maloteModal').classList.add('active');
 }
-function exportarJSON() {
-  const backup = {};
-  for(let i=0; i<localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1' || key.startsWith('jb_binid_')) {
-      try { backup[key] = JSON.parse(localStorage.getItem(key)); }
-      catch(e) { backup[key] = localStorage.getItem(key); }
+async function exportarJSON() {
+  try {
+    showToast('⏳ Preparando backup da nuvem...', 3000);
+    const backup = {};
+    const snapCaixas = await db.ref('caixas').once('value');
+    if (snapCaixas.exists()) {
+      snapCaixas.forEach(child => { backup[`caixa_v3_${child.key}`] = child.val(); });
     }
+    const snapConfig = await db.ref('config/caixas').once('value');
+    if (snapConfig.exists()) { backup['caixa_config_v1'] = snapConfig.val(); }
+    
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `backup-cartorio-nuvem-${new Date().toISOString().split('T')[0]}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    showToast('✓ Backup completo exportado!'); closeModal('settingsModal');
+  } catch(e) {
+    alert("Erro ao exportar backup da nuvem: " + e.message);
   }
-  const blob = new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `backup-cartorio-${new Date().toISOString().split('T')[0]}.json`;
-  a.click(); URL.revokeObjectURL(a.href);
-  showToast('✓ Backup exportado!'); closeModal('settingsModal');
 }
 function importarJSON(e) {
   const file = e.target.files[0]; if(!file) return;
   const reader = new FileReader();
-  reader.onload = function(event) {
+  reader.onload = async function(event) {
     try {
       const raw = event.target.result;
       if(!raw || raw.trim() === '') throw new Error('Arquivo vazio');
       const data = JSON.parse(raw);
       if(typeof data !== 'object' || data === null) throw new Error('Formato inválido');
-      let count = 0;
+      
+      let count = 0; let updates = {}; let configUpdate = null;
       for(let key in data) {
-        if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1' || key.startsWith('jb_binid_')) {
-          // Garante que o valor gravado no localStorage seja sempre uma string JSON válida
-          const val = data[key];
-          localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+        if(key.startsWith('caixa_v3_')) {
+          const date = key.replace('caixa_v3_', '');
+          updates[date] = data[key];
+          count++;
+        } else if(key === 'caixa_config_v1') {
+          configUpdate = data[key];
           count++;
         }
       }
-      if(count === 0) { alert('Nenhum dado reconhecido no arquivo. Verifique se é um backup válido do Cartório.'); return; }
-      showToast(`✓ ${count} registro(s) importado(s)!`);
-      location.reload();
+      if(count === 0) { alert('Nenhum dado reconhecido no arquivo. Verifique se é um backup válido.'); return; }
+      
+      showToast('⏳ Restaurando backup na nuvem...');
+      if (Object.keys(updates).length > 0) await db.ref('caixas').update(updates);
+      if (configUpdate) await db.ref('config/caixas').set(configUpdate);
+      
+      showToast(`✓ ${count} registro(s) restaurados na nuvem!`);
+      setTimeout(() => location.reload(), 1500);
     } catch(err) {
-      alert('Erro ao ler arquivo: ' + err.message + '\n\nVerifique se o arquivo é um backup JSON gerado por este sistema.');
+      alert('Erro ao ler arquivo: ' + err.message);
     }
   };
   reader.onerror = function() { alert('Não foi possível ler o arquivo. Tente novamente.'); };
