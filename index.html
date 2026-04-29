@@ -769,12 +769,10 @@ function aplicarSaldoProximoDia(c) {
   nextData[c].abertura = val.toLocaleString('pt-BR', {minimumFractionDigits:2});
   
   localStorage.setItem(nextKey, JSON.stringify(nextData));
-  // Tenta persistir no GitHub silenciosamente
+  // Tenta persistir no JSONBin silenciosamente
   (async () => {
     try {
-      const sha = _shaCache[nextDateStr] || null;
-      const result = await ghPut(ghPath(nextDateStr), nextData, sha);
-      _shaCache[nextDateStr] = result.content.sha;
+      await jbPut(nextDateStr, nextData);
     } catch(e) { console.warn('Transferência salva só localmente:', e); }
   })();
 
@@ -784,37 +782,74 @@ function aplicarSaldoProximoDia(c) {
   showToast(`✓ Fundo de ${nextDateFormatted} definido!`);
 }
 
-// ═══ GITHUB SYNC CONFIG ═══
-const GH = {
-  owner: 'richerdellatorreadv',
-  repo:  'Caixa1CRICACOAL',
-  token: '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',
-  branch: 'main',
-  senha: '1RICAC'
+// ═══ JSONBIN.IO SYNC CONFIG ═══
+const JB = {
+  masterKey: '$2a$10$o9mF7qRnz3mPf9X4TO.4M.fxoDAKIh903idqHRfg2yusL4heWivEq',
+  baseUrl:   'https://api.jsonbin.io/v3',
+  senha:     '1RICAC',
+  collectionName: 'CaixaCartorio'
 };
 
-function ghPath(dateStr) { return `dados/${dateStr}.json`; }
-function ghHeaders() { return { 'Authorization': `token ${GH.token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' }; }
+// Cache de binIds: { [dateStr]: binId }
+const _binCache = {};
 
-async function ghGet(path) {
+function jbHeaders(withContent = false) {
+  const h = { 'X-Master-Key': JB.masterKey };
+  if (withContent) h['Content-Type'] = 'application/json';
+  return h;
+}
+
+// Busca todos os bins e filtra pelo nome da data
+async function jbFindBin(dateStr) {
+  if (_binCache[dateStr]) return _binCache[dateStr];
   try {
-    const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`, { headers: ghHeaders() });
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error(`GitHub GET ${r.status}`);
+    const r = await fetch(`${JB.baseUrl}/b?meta=true`, { headers: jbHeaders() });
+    if (!r.ok) return null;
     const j = await r.json();
-    return { content: JSON.parse(atob(j.content.replace(/\n/g,''))), sha: j.sha };
-  } catch(e) { console.warn('ghGet erro:', e); return null; }
+    const bins = Array.isArray(j) ? j : (j.result || []);
+    const found = bins.find(b => b.record && b.record.name === `caixa_${dateStr}`);
+    if (found) { _binCache[dateStr] = found.record.id; return found.record.id; }
+    return null;
+  } catch(e) { console.warn('jbFindBin erro:', e); return null; }
 }
 
-async function ghPut(path, content, sha) {
-  const body = { message: `Fechamento ${path}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), branch: GH.branch };
-  if (sha) body.sha = sha;
-  const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
-  if (!r.ok) { const err = await r.json(); throw new Error(err.message || r.status); }
-  return r.json();
+async function jbGet(dateStr) {
+  try {
+    const binId = await jbFindBin(dateStr);
+    if (!binId) return null;
+    const r = await fetch(`${JB.baseUrl}/b/${binId}/latest`, { headers: jbHeaders() });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.record || null;
+  } catch(e) { console.warn('jbGet erro:', e); return null; }
 }
 
-// ─── SHA cache para evitar conflitos de ETag ───
+async function jbPut(dateStr, content) {
+  const binId = await jbFindBin(dateStr);
+  if (binId) {
+    // Atualiza bin existente
+    const r = await fetch(`${JB.baseUrl}/b/${binId}`, {
+      method: 'PUT',
+      headers: jbHeaders(true),
+      body: JSON.stringify(content)
+    });
+    if (!r.ok) { const err = await r.json(); throw new Error(err.message || r.status); }
+    return r.json();
+  } else {
+    // Cria novo bin
+    const r = await fetch(`${JB.baseUrl}/b`, {
+      method: 'POST',
+      headers: { ...jbHeaders(true), 'X-Bin-Name': `caixa_${dateStr}`, 'X-Bin-Private': 'true' },
+      body: JSON.stringify(content)
+    });
+    if (!r.ok) { const err = await r.json(); throw new Error(err.message || r.status); }
+    const j = await r.json();
+    if (j.metadata && j.metadata.id) _binCache[dateStr] = j.metadata.id;
+    return j;
+  }
+}
+
+// ─── Mantido por compatibilidade com aplicarSaldoProximoDia ───
 const _shaCache = {};
 
 function getStorageKey() { return `caixa_v3_${document.getElementById('mainDate').value}`; }
@@ -853,12 +888,11 @@ async function carregarDados() {
   const localKey = `caixa_v3_${dateStr}`;
   setEl('last-saved', '🔄 Carregando...');
 
-  // 1. Tenta buscar do GitHub
-  const ghResult = await ghGet(ghPath(dateStr));
-  if (ghResult) {
-    _shaCache[dateStr] = ghResult.sha;
-    localStorage.setItem(localKey, JSON.stringify(ghResult.content));
-    _preencherFormulario(ghResult.content);
+  // 1. Tenta buscar do JSONBin
+  const jbResult = await jbGet(dateStr);
+  if (jbResult) {
+    localStorage.setItem(localKey, JSON.stringify(jbResult));
+    _preencherFormulario(jbResult);
     setEl('last-saved', '☁ Dados do servidor');
     return;
   }
@@ -889,18 +923,16 @@ async function salvarDados(manual = false) {
   // Salvamento manual → pede senha e envia ao GitHub
   const senha = prompt('🔒 Digite a senha para salvar no servidor:');
   if (senha === null) return; // cancelou
-  if (senha !== GH.senha) { showToast('❌ Senha incorreta!'); return; }
+  if (senha !== JB.senha) { showToast('❌ Senha incorreta!'); return; }
 
   setEl('last-saved', '☁ Enviando...');
   try {
-    const sha = _shaCache[dateStr] || null;
-    const result = await ghPut(ghPath(dateStr), dados, sha);
-    _shaCache[dateStr] = result.content.sha;
+    await jbPut(dateStr, dados);
     localStorage.setItem(localKey, JSON.stringify(dados));
     setEl('last-saved', `☁ Salvo às ${hhmm}`);
     showToast('✓ Salvo no servidor com sucesso!');
   } catch(e) {
-    console.error('Erro ao salvar no GitHub:', e);
+    console.error('Erro ao salvar no JSONBin:', e);
     setEl('last-saved', `💾 Local (erro servidor)`);
     showToast('⚠ Salvo localmente. Erro no servidor: ' + e.message, 5000);
   }
