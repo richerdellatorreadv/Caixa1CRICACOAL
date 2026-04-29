@@ -56,16 +56,21 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 input, select { font-family: inherit; }
 
 /* ─── TOPBAR ─── */
-.topbar { position: sticky; top: 0; z-index: 200; height: 56px; background: rgba(8,10,15,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 16px; transition: background 0.3s; }
-[data-theme="light"] .topbar { background: rgba(255,255,255,0.95); }
-.topbar-left { display: flex; align-items: center; gap: 16px; }
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-icon { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--accent-p)); display: flex; align-items: center; justify-content: center; color: #fff; }
-.brand-name { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; color: var(--text); }
-.brand-sep { width: 1px; height: 20px; background: var(--border2); }
-.date-pill { display: flex; align-items: center; gap: 8px; background: var(--s2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px 4px 10px; font-family: var(--mono); font-size: 11px; color: var(--text2); }
-.date-pill i { width: 12px; height: 12px; color: var(--text3); }
-input[type=date].date-native, input[type=month].date-native { background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 11px; color: var(--text); cursor: pointer; }
+.topbar { position: sticky; top: 0; z-index: 200; height: 60px; background: rgba(8,10,15,0.85); backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; gap: 16px; transition: background 0.3s; box-shadow: 0 4px 30px rgba(0,0,0,0.2); }
+[data-theme="light"] .topbar { background: rgba(255,255,255,0.85); border-bottom: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 30px rgba(0,0,0,0.05); }
+.topbar-left { display: flex; align-items: center; gap: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); box-shadow: 0 4px 12px rgba(59,130,246,0.3); display: flex; align-items: center; justify-content: center; color: #fff; }
+.brand-icon i { width: 18px; height: 18px; }
+.brand-name { font-size: 15px; letter-spacing: 0.05em; color: var(--text); display: flex; align-items: center; gap: 4px; }
+.brand-name .fw-light { font-weight: 300; opacity: 0.8; }
+.brand-name .fw-bold { font-weight: 800; }
+.brand-sep { width: 1px; height: 24px; background: var(--border2); opacity: 0.5; }
+.date-pill { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 5px 14px 5px 12px; font-family: var(--mono); font-size: 12px; color: var(--text2); transition: all 0.2s; }
+.date-pill:hover { background: rgba(255,255,255,0.06); }
+[data-theme="light"] .date-pill { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+.date-pill i { width: 14px; height: 14px; color: var(--text3); }
+input[type=date].date-native, input[type=month].date-native { background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; }
 input[type=date].date-native::-webkit-calendar-picker-indicator, input[type=month].date-native::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
 [data-theme="light"] input[type=date].date-native::-webkit-calendar-picker-indicator, [data-theme="light"] input[type=month].date-native::-webkit-calendar-picker-indicator { filter: invert(0); }
 
@@ -79,8 +84,8 @@ input[type=date].date-native::-webkit-calendar-picker-indicator, input[type=mont
 .btn-pdf { background: var(--s2); color: var(--text); border: 1px solid var(--border2); }
 .btn-pdf:hover { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.12); }
 [data-theme="light"] .btn-pdf:hover { color: var(--accent); }
-.btn-save { background: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(59,130,246,0.3); }
-.btn-save:hover { background: #5b9af8; transform: translateY(-1px); box-shadow: 0 0 24px rgba(59,130,246,0.45); }
+.btn-save { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 4px 14px rgba(59,130,246,0.3); border: 1px solid rgba(255,255,255,0.1); }
+.btn-save:hover { background: linear-gradient(135deg, #60a5fa, #3b82f6); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.5); }
 .btn-danger { background: rgba(239,68,68,0.1); color: var(--accent-r); border: 1px solid rgba(239,68,68,0.2); }
 .btn-danger:hover { background: rgba(239,68,68,0.2); }
 
@@ -137,6 +142,21 @@ input[type=date].date-native::-webkit-calendar-picker-indicator, input[type=mont
 .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 .field-input.neg { color: var(--accent-r); }
 .field-input.dim { color: var(--text3); background: var(--bg); }
+.field-input:disabled { opacity: 0.7; cursor: not-allowed; background: rgba(0,0,0,0.05); border-color: transparent; }
+[data-theme="light"] .field-input:disabled { background: rgba(0,0,0,0.03); }
+
+/* ─── DETALHES LIST ─── */
+.detalhes-wrap { display: none; margin-top: 8px; background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px; }
+[data-theme="light"] .detalhes-wrap { background: rgba(0,0,0,0.02); }
+.detalhes-wrap.active { display: block; animation: pagein 0.2s ease; }
+.detalhe-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.detalhe-input { font-family: var(--mono); font-size: 13px; background: var(--bg); border: 1px solid var(--border2); border-radius: 4px; padding: 6px 10px; color: var(--text); flex: 1; outline: none; transition: border-color 0.15s; }
+.detalhe-input:focus { border-color: var(--accent); }
+.btn-detalhe-add { font-size: 11px; padding: 6px 10px; width: 100%; border-style: dashed; justify-content: center; margin-top: 4px; }
+.btn-toggle-detalhes { background: transparent; border: none; color: var(--text3); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.btn-toggle-detalhes:hover { background: var(--s3); color: var(--text); }
+.btn-toggle-detalhes.active { color: var(--accent); background: rgba(59,130,246,0.1); }
+
 
 /* ─── CÉDULAS E LINHAS ─── */
 .notas-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -238,13 +258,15 @@ hr.div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="topbar-left">
-    <div class="brand"><div class="brand-icon">⬡</div><div class="brand-name">Caixa Cartório</div></div>
+    <div class="brand">
+      <div class="brand-icon"><i data-lucide="landmark"></i></div>
+      <div class="brand-name"><span class="fw-light">CAIXA</span><span class="fw-bold">CARTÓRIO</span></div>
+    </div>
     <div class="brand-sep"></div>
     <div class="date-pill"><i data-lucide="calendar"></i> <input type="date" class="date-native" id="mainDate" onchange="mudarData()"></div>
   </div>
   <div class="topbar-right">
     <span class="last-saved" id="last-saved"></span>
-    <button class="btn btn-ghost btn-icon" onclick="openMaloteModal()" title="Resumo do Malote"><i data-lucide="wallet"></i></button>
     <button class="btn btn-ghost btn-icon" onclick="openSettingsModal()" title="Configurações e Caixas"><i data-lucide="settings"></i></button>
     <button class="btn btn-ghost btn-icon" onclick="toggleTheme()" title="Alternar Tema"><i id="theme-icon" data-lucide="sun"></i></button>
     <button class="btn btn-pdf" onclick="gerarPDF()"><i data-lucide="file-down"></i> Exportar PDF</button>
@@ -449,12 +471,17 @@ function loadConfigAndBuildUI() {
   });
 }
 
+
+function renderFieldWithDetails(c, id, label, hint) {
+  return `<div class="field"><div class="field-label" style="display:flex; justify-content:space-between; align-items:center;"><div>${label} <span class="field-hint">${hint}</span></div><button class="btn-toggle-detalhes" onclick="toggleDetalhes('${c}', '${id}')" id="btn-det-${c}-${id}" title="Lançamentos individuais"><i data-lucide="list-plus" style="width:14px; height:14px;"></i></button></div><input type="text" class="field-input math-input" id="${c}-${id}" placeholder="0,00"><div class="detalhes-wrap" id="${c}-${id}-det-wrap"><div id="${c}-${id}-det-list"></div><button class="btn btn-ghost btn-detalhe-add" onclick="addDetalhe('${c}', '${id}')"><i data-lucide="plus" style="width:12px; height:12px;"></i> Adicionar Recibo</button></div></div>`;
+}
+
 function renderCaixaHTML(cfg) {
   const c = cfg.id; const cColor = getColorClass(cfg.tipo);
   const anotacoesHTML = `<div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar"></div>Anotações</div><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="addAnotacao('${c}')"><i data-lucide="plus" style="width:12px;"></i> Adicionar</button></div><div id="${c}-anots-wrap"></div></div>`;
 
   if (cfg.tipo === 'ONR') {
-    return `<div class="page-header"><div class="title-wrap"><div><div class="page-title ${cColor}">${cfg.nome}</div><div class="page-sub">ONR / Repasse Eletrônico ao Cartório Nacional</div></div><button class="btn btn-ghost" onclick="limparCaixa('${c}')" title="Limpar caixa"><i data-lucide="eraser"></i></button></div><div class="total-display"><div class="total-display-label">Total Líquido do Caixa</div><div class="total-display-val" id="${c}-total-badge">R$ 0,00</div></div></div><div class="g2"><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar" style="background:var(--accent);"></div>Recebimentos Eletrônicos (Maquininha)</div></div><div class="field"><div class="field-label">PIX <span class="field-hint">Recebimentos via PIX na maquininha</span></div><input type="text" class="field-input math-input" id="${c}-pix" placeholder="0,00"></div><div class="field"><div class="field-label">Cartão de Débito</div><input type="text" class="field-input math-input" id="${c}-debito" placeholder="0,00"></div><div class="field"><div class="field-label">Cartão de Crédito <span class="field-hint">Valor bruto processado na máquina</span></div><input type="text" class="field-input math-input" id="${c}-credito" placeholder="0,00"></div><div class="sub-row" style="background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.2);"><span class="sub-row-lbl">Total Eletrônico (Bruto)</span><span class="sub-row-val text-blue" id="${c}-maq-bruta">R$ 0,00</span></div><hr class="div"><div class="field"><div class="field-label">Taxa Administrativa Bancária <span class="field-hint">Desconto cobrado pela operadora de cartão</span></div><input type="text" class="field-input math-input neg" id="${c}-taxa" placeholder="0,00"></div><div class="sub-row"><span class="sub-row-lbl">Saldo Líquido Eletrônico (após taxas)</span><span class="sub-row-val" id="${c}-maq-liq">R$ 0,00</span></div></div></div><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar green"></div>Depósitos Bancários</div></div><div class="field"><div class="field-label">Depósito em Conta <span class="field-hint">Comprovante de depósito bancário</span></div><input type="text" class="field-input math-input" id="${c}-deposito" placeholder="0,00"></div></div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar yellow"></div>Conferência com o Sistema Cartorial</div></div><div class="field"><div class="field-label">Valor Gerado pelo Sistema IMOB <span class="field-hint">Total apontado no relatório do sistema</span></div><input type="text" class="field-input math-input" id="${c}-imob" placeholder="0,00"></div><div id="${c}-diff-block" class="diff-block"><div><div class="diff-info-label" id="${c}-diff-label">Aguardando lançamento do IMOB</div><div class="diff-info-sub" style="font-size:10px;color:var(--text3);">Comparativo: Total do caixa × Total do sistema</div></div><div class="diff-val dim" id="${c}-diff-val">—</div></div></div>${anotacoesHTML}</div></div>`;
+    return `<div class="page-header"><div class="title-wrap"><div><div class="page-title ${cColor}">${cfg.nome}</div><div class="page-sub">ONR / Repasse Eletrônico ao Cartório Nacional</div></div><button class="btn btn-ghost" onclick="limparCaixa('${c}')" title="Limpar caixa"><i data-lucide="eraser"></i></button></div><div class="total-display"><div class="total-display-label">Total Líquido do Caixa</div><div class="total-display-val" id="${c}-total-badge">R$ 0,00</div></div></div><div class="g2"><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar" style="background:var(--accent);"></div>Recebimentos Eletrônicos (Maquininha)</div></div>${renderFieldWithDetails(c, 'pix', 'PIX', 'Recebimentos via PIX na maquininha')}${renderFieldWithDetails(c, 'debito', 'Cartão de Débito', '')}${renderFieldWithDetails(c, 'credito', 'Cartão de Crédito', 'Valor bruto processado na máquina')}<div class="sub-row" style="background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.2);"><span class="sub-row-lbl">Total Eletrônico (Bruto)</span><span class="sub-row-val text-blue" id="${c}-maq-bruta">R$ 0,00</span></div><hr class="div"><div class="field"><div class="field-label">Taxa Administrativa Bancária <span class="field-hint">Desconto cobrado pela operadora de cartão</span></div><input type="text" class="field-input math-input neg" id="${c}-taxa" placeholder="0,00"></div><div class="sub-row"><span class="sub-row-lbl">Saldo Líquido Eletrônico (após taxas)</span><span class="sub-row-val" id="${c}-maq-liq">R$ 0,00</span></div></div></div><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar green"></div>Depósitos Bancários</div></div>${renderFieldWithDetails(c, 'deposito', 'Depósito em Conta', 'Comprovante de depósito bancário')}</div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar yellow"></div>Conferência com o Sistema Cartorial</div></div><div class="field"><div class="field-label">Valor Gerado pelo Sistema IMOB <span class="field-hint">Total apontado no relatório do sistema</span></div><input type="text" class="field-input math-input" id="${c}-imob" placeholder="0,00"></div><div id="${c}-diff-block" class="diff-block"><div><div class="diff-info-label" id="${c}-diff-label">Aguardando lançamento do IMOB</div><div class="diff-info-sub" style="font-size:10px;color:var(--text3);">Comparativo: Total do caixa × Total do sistema</div></div><div class="diff-val dim" id="${c}-diff-val">—</div></div></div>${anotacoesHTML}</div></div>`;
   }
   
   const notasHTML = NOTAS.map(n => `<div class="nota-row"><span class="nota-lbl">${n.lbl}</span><input type="number" class="nota-qty" id="${c}-nota-${n.val}" placeholder="0" oninput="calcularCaixa('${c}')"><span class="nota-sub" id="${c}-nota-${n.val}-val">R$ 0,00</span></div>`).join('');
@@ -473,7 +500,7 @@ function renderCaixaHTML(cfg) {
     </div>
     <div id="${c}-saldo-status" style="margin-top:6px;font-size:11px;color:var(--text3);"></div>
   </div>
-  </div></div><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar" style="background:var(--accent);"></div>Recebimentos Eletrônicos (Maquininha)</div></div><div class="field"><div class="field-label">PIX <span class="field-hint">Recebimentos via PIX na maquininha</span></div><input type="text" class="field-input math-input" id="${c}-pix" placeholder="0,00"></div><div class="field"><div class="field-label">Cartão de Débito</div><input type="text" class="field-input math-input" id="${c}-debito" placeholder="0,00"></div><div class="field"><div class="field-label">Cartão de Crédito <span class="field-hint">Valor bruto processado na máquina</span></div><input type="text" class="field-input math-input" id="${c}-credito" placeholder="0,00"></div><div class="sub-row" style="background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.2);"><span class="sub-row-lbl">Total Eletrônico (Bruto)</span><span class="sub-row-val text-blue" id="${c}-maq-bruta">R$ 0,00</span></div><hr class="div"><div class="field"><div class="field-label">Taxa Administrativa Bancária <span class="field-hint">Desconto cobrado pela operadora de cartão</span></div><input type="text" class="field-input math-input neg" id="${c}-taxa" placeholder="0,00"></div><div class="sub-row"><span class="sub-row-lbl">Saldo Líquido Eletrônico (após taxas)</span><span class="sub-row-val" id="${c}-maq-liq">R$ 0,00</span></div></div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar green"></div>Depósitos Bancários</div></div><div class="field"><div class="field-label">Depósito em Conta <span class="field-hint">Comprovante de depósito bancário</span></div><input type="text" class="field-input math-input" id="${c}-deposito" placeholder="0,00"></div></div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar yellow"></div>Conferência com o Sistema Cartorial</div></div><div class="field"><div class="field-label">Valor Gerado pelo Sistema IMOB <span class="field-hint">Total apontado no relatório do sistema</span></div><input type="text" class="field-input math-input" id="${c}-imob" placeholder="0,00"></div><div id="${c}-diff-block" class="diff-block"><div><div class="diff-info-label" id="${c}-diff-label">Aguardando lançamento do IMOB</div><div class="diff-info-sub" style="font-size:10px;color:var(--text3);">Comparativo: Total do caixa × Total do sistema</div></div><div class="diff-val dim" id="${c}-diff-val">—</div></div></div>${anotacoesHTML}</div></div>`;
+  </div></div><div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar" style="background:var(--accent);"></div>Recebimentos Eletrônicos (Maquininha)</div></div>${renderFieldWithDetails(c, 'pix', 'PIX', 'Recebimentos via PIX na maquininha')}${renderFieldWithDetails(c, 'debito', 'Cartão de Débito', '')}${renderFieldWithDetails(c, 'credito', 'Cartão de Crédito', 'Valor bruto processado na máquina')}<div class="sub-row" style="background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.2);"><span class="sub-row-lbl">Total Eletrônico (Bruto)</span><span class="sub-row-val text-blue" id="${c}-maq-bruta">R$ 0,00</span></div><hr class="div"><div class="field"><div class="field-label">Taxa Administrativa Bancária <span class="field-hint">Desconto cobrado pela operadora de cartão</span></div><input type="text" class="field-input math-input neg" id="${c}-taxa" placeholder="0,00"></div><div class="sub-row"><span class="sub-row-lbl">Saldo Líquido Eletrônico (após taxas)</span><span class="sub-row-val" id="${c}-maq-liq">R$ 0,00</span></div></div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar green"></div>Depósitos Bancários</div></div>${renderFieldWithDetails(c, 'deposito', 'Depósito em Conta', 'Comprovante de depósito bancário')}</div><div class="card"><div class="card-head"><div class="card-title"><div class="card-title-bar yellow"></div>Conferência com o Sistema Cartorial</div></div><div class="field"><div class="field-label">Valor Gerado pelo Sistema IMOB <span class="field-hint">Total apontado no relatório do sistema</span></div><input type="text" class="field-input math-input" id="${c}-imob" placeholder="0,00"></div><div id="${c}-diff-block" class="diff-block"><div><div class="diff-info-label" id="${c}-diff-label">Aguardando lançamento do IMOB</div><div class="diff-info-sub" style="font-size:10px;color:var(--text3);">Comparativo: Total do caixa × Total do sistema</div></div><div class="diff-val dim" id="${c}-diff-val">—</div></div></div>${anotacoesHTML}</div></div>`;
 }
 
 // ═══ CONFIGURAÇÃO MODAL (EDITAR CAIXAS) ═══
@@ -487,6 +514,60 @@ function renderCaixaEditList() {
 function updateTempCaixa(index, key, val) { editingCaixas[index][key] = val; }
 function removeCaixaFromList(index) { if(confirm("Remover este caixa da exibição?")) { editingCaixas.splice(index, 1); renderCaixaEditList(); } }
 function addCaixaToList() { const newId = 'cx_' + Math.floor(Math.random() * 1000000); editingCaixas.push({ id: newId, nome: 'Novo Caixa', tipo: 'RI' }); renderCaixaEditList(); }
+
+// ═══ LANÇAMENTOS INDIVIDUAIS ═══
+function toggleDetalhes(c, id) {
+  const wrap = document.getElementById(`${c}-${id}-det-wrap`);
+  const btn = document.getElementById(`btn-det-${c}-${id}`);
+  if(!wrap) return;
+  wrap.classList.toggle('active');
+  btn.classList.toggle('active');
+}
+
+function addDetalhe(c, id, val = '') {
+  const list = document.getElementById(`${c}-${id}-det-list`);
+  const row = document.createElement('div');
+  row.className = 'detalhe-row';
+  row.innerHTML = `<input type="text" class="detalhe-input" placeholder="0,00" value="${val}" oninput="calcDetalhes('${c}','${id}')"><button class="btn-ghost-danger" style="padding:6px; border-radius:4px; cursor:pointer;" onclick="removeDetalhe(this, '${c}', '${id}')" title="Remover"><i data-lucide="x" style="width:14px;height:14px;"></i></button>`;
+  list.appendChild(row);
+  lucide.createIcons();
+  
+  if(val === '') {
+    setTimeout(() => {
+      const inputs = list.querySelectorAll('.detalhe-input');
+      if(inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 50);
+  }
+  calcDetalhes(c, id);
+}
+
+function removeDetalhe(btnEl, c, id) {
+  btnEl.parentElement.remove();
+  calcDetalhes(c, id);
+}
+
+function calcDetalhes(c, id) {
+  const list = document.getElementById(`${c}-${id}-det-list`);
+  const mainInput = document.getElementById(`${c}-${id}`);
+  const inputs = list.querySelectorAll('.detalhe-input');
+  
+  if (inputs.length === 0) {
+    mainInput.disabled = false;
+    mainInput.title = "";
+  } else {
+    mainInput.disabled = true;
+    mainInput.title = "O valor está sendo somado automaticamente pela lista de recibos.";
+    let sum = 0;
+    inputs.forEach(inp => {
+      const v = parseFloat(inp.value.replace(/\./g, '').replace(',', '.')) || 0;
+      sum += v;
+    });
+    mainInput.value = sum.toLocaleString('pt-BR', {minimumFractionDigits:2});
+  }
+  calcularCaixa(c);
+  salvarDadosDebounced();
+}
+
 function saveConfigCaixas() {
   if(editingCaixas.length === 0) { alert("Você precisa ter pelo menos um caixa."); return; }
   salvarDados(false); // Salva os dados financeiros pendentes antes de mudar a config
@@ -873,12 +954,43 @@ function getStorageKey() { return `caixa_v3_${document.getElementById('mainDate'
 
 function coletarDados() {
   const obj = { ansata: document.getElementById('ansata-input').value, imob: document.getElementById('imob-input').value, maquininha: document.getElementById('maquininha-input').value };
-  CAIXAS.forEach(cfg => { const c = cfg.id; obj[c] = {}; NOTAS.forEach(n => obj[c][`n${n.val}`] = document.getElementById(`${c}-nota-${n.val}`)?.value || ''); ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { obj[c][f] = document.getElementById(`${c}-${f}`)?.value || ''; }); const anotsWrap = document.getElementById(`${c}-anots-wrap`); if(anotsWrap) { const anots = anotsWrap.querySelectorAll('.anot-input'); for(let i=0; i<anots.length; i++) { obj[c][`a${i+1}`] = anots[i].value; } } }); return obj;
+  CAIXAS.forEach(cfg => { 
+    const c = cfg.id; obj[c] = {}; 
+    NOTAS.forEach(n => obj[c][`n${n.val}`] = document.getElementById(`${c}-nota-${n.val}`)?.value || ''); 
+    ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { obj[c][f] = document.getElementById(`${c}-${f}`)?.value || ''; }); 
+    
+    // Coleta as listas de detalhes
+    ['pix','debito','credito','deposito'].forEach(f => {
+      const list = document.getElementById(`${c}-${f}-det-list`);
+      if(list && list.children.length > 0) {
+        const inputs = list.querySelectorAll('.detalhe-input');
+        obj[c][`${f}_det`] = Array.from(inputs).map(inp => inp.value).join('||');
+      }
+    });
+
+    const anotsWrap = document.getElementById(`${c}-anots-wrap`); 
+    if(anotsWrap) { 
+      const anots = anotsWrap.querySelectorAll('.anot-input'); 
+      for(let i=0; i<anots.length; i++) { obj[c][`a${i+1}`] = anots[i].value; } 
+    } 
+  }); 
+  return obj;
 }
 
 function _preencherFormulario(obj) {
   document.querySelectorAll('input:not([type="date"]):not([type="month"])').forEach(i => { if(i !== document.activeElement) i.value = ''; });
   CAIXAS.forEach(cfg => { const wrap=document.getElementById(`${cfg.id}-anots-wrap`); if(wrap && !wrap.contains(document.activeElement)) wrap.innerHTML = ''; });
+  
+  // Limpar as listas de detalhes
+  ['pix','debito','credito','deposito'].forEach(f => {
+    CAIXAS.forEach(cfg => {
+       const list = document.getElementById(`${cfg.id}-${f}-det-list`);
+       if(list && !list.contains(document.activeElement)) list.innerHTML = '';
+       const mainInput = document.getElementById(`${cfg.id}-${f}`);
+       if(mainInput) { mainInput.disabled = false; mainInput.title = ""; }
+    });
+  });
+
   if (!obj) { CAIXAS.forEach(cfg => addAnotacao(cfg.id)); CAIXAS.forEach(cfg => calcularCaixa(cfg.id)); return; }
   
   const setIfInactive = (id, val) => { const el = document.getElementById(id); if (el && el !== document.activeElement) el.value = val; };
@@ -891,6 +1003,27 @@ function _preencherFormulario(obj) {
     if (!obj[c]) { addAnotacao(c); return; }
     NOTAS.forEach(n => setIfInactive(`${c}-nota-${n.val}`, obj[c][`n${n.val}`]||''));
     ['moeda','pix','credito','taxa','debito','deposito','abertura','bernadete','vale','imob','saldo-remanescente'].forEach(f => { setIfInactive(`${c}-${f}`, obj[c][f]||''); });
+    
+    // Preencher as listas de detalhes
+    ['pix','debito','credito','deposito'].forEach(f => {
+       const list = document.getElementById(`${c}-${f}-det-list`);
+       if(list && !list.contains(document.activeElement) && obj[c][`${f}_det`]) {
+         list.innerHTML = '';
+         const vals = obj[c][`${f}_det`].split('||');
+         vals.forEach(val => {
+            const row = document.createElement('div'); row.className = 'detalhe-row';
+            row.innerHTML = `<input type="text" class="detalhe-input" placeholder="0,00" value="${val}" oninput="calcDetalhes('${c}','${f}')"><button class="btn-ghost-danger" style="padding:6px; border-radius:4px; cursor:pointer;" onclick="removeDetalhe(this, '${c}', '${f}')" title="Remover"><i data-lucide="x" style="width:14px;height:14px;"></i></button>`;
+            list.appendChild(row);
+         });
+         lucide.createIcons();
+         const wrap = document.getElementById(`${c}-${f}-det-wrap`);
+         const btn = document.getElementById(`btn-det-${c}-${f}`);
+         if(!wrap.classList.contains('active')) { wrap.classList.add('active'); btn.classList.add('active'); }
+         
+         const mainInput = document.getElementById(`${c}-${f}`);
+         if(mainInput) { mainInput.disabled = true; mainInput.title = "O valor está sendo somado automaticamente pela lista de recibos."; }
+       }
+    });
     if(obj[c]['abertura'] && parseFloat((obj[c]['abertura']||'').replace(/\./g,'').replace(',','.'))||0 > 0) {
       const statusEl = document.getElementById(`${c}-saldo-status`);
       if(statusEl && (!obj[c]['pix'] && !obj[c]['credito'] && !obj[c]['debito']))
