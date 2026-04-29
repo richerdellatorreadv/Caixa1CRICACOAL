@@ -532,6 +532,7 @@ function fmtShort(n) {
 }
 function fmtSigned(n) { if (Math.abs(n) < 0.005) return 'R$ 0,00'; return (n > 0 ? '+ ' : '- ') + fmt(n); }
 function setEl(id, txt, exCls) { const el = document.getElementById(id); if (el) { el.textContent = txt; if (exCls !== undefined) el.className = exCls; } }
+function showToast(msg, duration = 3000) { const t = document.getElementById('toast'); if(!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), duration); }
 
 // ═══ MATH INPUTS ═══
 function applyMathInputs() {
