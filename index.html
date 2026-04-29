@@ -631,7 +631,7 @@ function calcularTudo() {
 
   const imob = pv('imob-input'); const db = document.getElementById('g-diff-block');
   if(imob > 0) {
-    const diff = geral - imob;
+    const diff = rt - imob; // IMOB cobre apenas CRI (RI + ONR); TD é conferido pelo ANSATA
     if (Math.abs(diff) < 0.05) { if(db) db.className = 'diff-block ok'; setEl('g-diff-label', 'Conferido — Fechamento correto'); setEl('g-diff-val', 'OK', 'diff-val ok'); triggerFlash('g-diff-block', diff, 'geral'); } 
     else { if(db) db.className = diff > 0 ? 'diff-block warn' : 'diff-block err'; setEl('g-diff-label', diff > 0 ? 'Excedente nos caixas' : 'Diferença a menor'); setEl('g-diff-val', fmtSigned(diff), diff > 0 ? 'diff-val warn' : 'diff-val err'); lastDiffs['geral'] = false; }
   } else { if(db) db.className = 'diff-block'; setEl('g-diff-label', 'Aguardando lançamento do IMOB'); setEl('g-diff-val', '—', 'diff-val dim'); lastDiffs['geral'] = false; }
@@ -704,8 +704,50 @@ function openMaloteModal() {
   html += `<tr><td>Moedas</td><td>—</td><td style="color:var(--text)">${fmt(gMoeda)}</td></tr></tbody></table>`;
   cont.innerHTML = html; setEl('malote-total', fmt(totNotas + gMoeda)); document.getElementById('maloteModal').classList.add('active');
 }
-function exportarJSON() { const backup = {}; for(let i=0; i<localStorage.length; i++) { const key = localStorage.key(i); if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1') backup[key] = localStorage.getItem(key); } const blob = new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup-cartorio-${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(a.href); showToast('✓ Backup exportado!'); closeModal('settingsModal'); }
-function importarJSON(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(event) { try { const data = JSON.parse(event.target.result); for(let key in data) { if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1') localStorage.setItem(key, data[key]); } showToast('✓ Banco de dados importado!'); location.reload(); } catch(err) { alert('Erro ao ler arquivo.'); } }; reader.readAsText(file); e.target.value = ''; }
+function exportarJSON() {
+  const backup = {};
+  for(let i=0; i<localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1') {
+      try { backup[key] = JSON.parse(localStorage.getItem(key)); } // salva como objeto, não string escapada
+      catch(e) { backup[key] = localStorage.getItem(key); } // fallback: mantém como string se não parsear
+    }
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `backup-cartorio-${new Date().toISOString().split('T')[0]}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('✓ Backup exportado!'); closeModal('settingsModal');
+}
+function importarJSON(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    try {
+      const raw = event.target.result;
+      if(!raw || raw.trim() === '') throw new Error('Arquivo vazio');
+      const data = JSON.parse(raw);
+      if(typeof data !== 'object' || data === null) throw new Error('Formato inválido');
+      let count = 0;
+      for(let key in data) {
+        if(key.startsWith('caixa_v3_') || key === 'caixa_config_v1') {
+          // Garante que o valor gravado no localStorage seja sempre uma string JSON válida
+          const val = data[key];
+          localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+          count++;
+        }
+      }
+      if(count === 0) { alert('Nenhum dado reconhecido no arquivo. Verifique se é um backup válido do Cartório.'); return; }
+      showToast(`✓ ${count} registro(s) importado(s)!`);
+      location.reload();
+    } catch(err) {
+      alert('Erro ao ler arquivo: ' + err.message + '\n\nVerifique se o arquivo é um backup JSON gerado por este sistema.');
+    }
+  };
+  reader.onerror = function() { alert('Não foi possível ler o arquivo. Tente novamente.'); };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+}
 
 function aplicarSaldoProximoDia(c) {
   const val = pv(`${c}-saldo-remanescente`);
@@ -770,7 +812,7 @@ function gerarPDF() {
   bg(30,40,60); doc.rect(0,0,W,25,'F'); fs(14,true); fc(255,255,255); txt('RELATÓRIO DE CAIXA', W/2, 12, {align:'center'}); fs(10,false); fc(180,200,240); txt(`Data: ${dateStr}`, W/2, 18, {align:'center'}); y = 32;
 
   // MATH GLOBALS
-  const totals={}; let gTotLiq=0, gTotMaqB=0, gTotTaxa=0, gTotFis=0, gTotRem=0; let tdTotLiq=0;
+  const totals={}; let gTotLiq=0, gTotMaqB=0, gTotTaxa=0, gTotFis=0, gTotRem=0; let tdTotLiq=0, criTotLiq=0;
   CAIXAS.forEach(cfg => {
     const c=cfg.id, cd=data[c]||{}; let nts=0; NOTAS.forEach(n => nts += (parseInt(cd[`n${n.val}`])||0)*n.val);
     const m = parseFloat((cd.moeda||'').replace(/\./g,'').replace(',','.'))||0;
@@ -789,7 +831,7 @@ function gerarPDF() {
     
     totals[c] = {fis, px, db, crB, tx, maqB, maqL, dp, ab, val, bern, rem, totLiq}; 
     gTotLiq+=totLiq; gTotMaqB+=maqB; gTotTaxa+=tx; gTotFis+=fis; gTotRem+=rem;
-    if(cfg.tipo === 'TD') tdTotLiq+=totLiq;
+    if(cfg.tipo === 'TD') tdTotLiq+=totLiq; else criTotLiq+=totLiq; // CRI = RI + ONR
   });
 
   // GERAL RESUMO
@@ -806,7 +848,7 @@ function gerarPDF() {
 
   const imobV = parseFloat((data.imob||'').replace(/\./g,'').replace(',','.'))||0;
   fs(9,false); fc(80,90,110); txt('Total Gerado pelo Sistema IMOB (global):', M, y); fc(40,50,80); txt(`R$ ${imobV.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); addY(5);
-  const diffI = gTotLiq - imobV; txt('Divergência IMOB × Caixas (Líquido):', M, y); if(Math.abs(diffI)<0.05){fc(20,160,80); txt('Conferido — R$ 0,00', W-M, y, {align:'right'});} else {fc(200,60,40); txt(fmtSigned(diffI), W-M, y, {align:'right'});} addY(8);
+  const diffI = criTotLiq - imobV; txt('Divergência IMOB × Caixas (Líquido):', M, y); if(Math.abs(diffI)<0.05){fc(20,160,80); txt('Conferido — R$ 0,00', W-M, y, {align:'right'});} else {fc(200,60,40); txt(fmtSigned(diffI), W-M, y, {align:'right'});} addY(8);
 
   const ansataV = parseFloat((data.ansata||'').replace(/\./g,'').replace(',','.'))||0;
   fs(9,false); fc(80,90,110); txt('Relatório ANSATA (referência — apenas TD):', M, y); fc(40,50,80); txt(`R$ ${ansataV.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); addY(5);
@@ -837,8 +879,8 @@ function gerarPDF() {
       fs(9,false); fc(80,90,110);
       if(d.ab > 0) { txt('   Abertura de caixa (valor de abertura do caixa)', M, y); fc(180,40,40); txt(`- R$ ${d.ab.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); fc(80,90,110); addY(5); }
       if(d.fis > 0) { txt('   Soma de Cédulas e Moedas', M, y); txt(`R$ ${d.fis.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); addY(5); }
-      if(d.rem > 0) { fc(100,60,160); txt('   Saldo Remanescente p/ Fundo do Dia Seguinte', M, y); fc(180,40,40); txt(`- R$ ${d.rem.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); fc(80,90,110); addY(5); }
-      const subFis = d.fis - d.ab - d.rem;
+      if(d.rem > 0) { fc(100,60,160); txt('   Saldo Remanescente p/ Fundo do Dia Seguinte (informativo)', M, y); txt(`R$ ${d.rem.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); fc(80,90,110); addY(5); }
+      const subFis = d.fis - d.ab; // rem é apenas informativo, não deduz do total
       fs(9,true); fc(30,120,60); txt('   SUBTOTAL NUMERÁRIO E DEPÓSITOS', M, y); txt(`R$ ${subFis.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, W-M, y, {align:'right'}); addY(10);
     }
 
